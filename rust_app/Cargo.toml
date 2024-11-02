@@ -1,5 +1,5 @@
 [package]
-name = "rust-sample"
+name = "bustleit-backend-serverless"
 version = "0.1.0"
 edition = "2021"
 
