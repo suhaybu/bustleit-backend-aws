@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]
 pub struct RecommendationInput {
-    pub scores: Vec<f64>,
+    pub scores: Vec<f32>,
     pub preferences: Vec<String>,
     pub work_end_time: i32,
 }
@@ -10,7 +10,7 @@ pub struct RecommendationInput {
 #[derive(Debug, Serialize, Clone)]
 pub struct TaskRecommendation {
     pub task_name: String,
-    pub score: f64,
+    pub score: f32,
     pub category: String,
     pub suggested_time: String,
 }

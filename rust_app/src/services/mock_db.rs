@@ -167,7 +167,7 @@ impl MockDb {
 
     #[allow(unused_variables)]
     pub async fn get_recommendations(
-        scores: Vec<f64>,
+        scores: Vec<f32>,
         preferences: Vec<String>,
         work_end_time: i32,
     ) -> Vec<TaskRecommendation> {
