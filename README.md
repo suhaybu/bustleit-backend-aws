@@ -130,62 +130,38 @@ Next, you can use AWS Serverless Application Repository to deploy ready-to-use a
 
 ## File structure for now
 ```
-.
-├── events/
-│   └── event.json
-├── rust_app/
-│   ├── Cargo.toml
-│   └── src/
-│       ├── main.rs              # Entry point with Lambda handler
-│       ├── lib.rs               # Library code and module definitions
-│       ├── handlers/            # Lambda function handlers
-│       │   ├── mod.rs
-│       │   ├── health.rs
-│       │   └── error.rs
-│       ├── models/              # Data models and schemas
-│       │   ├── mod.rs
-│       │   └── response.rs
-│       ├── services/            # Business logic layer
-│       │   ├── mod.rs
-│       │   └── example_service.rs
-│       └── utils/               # Shared utilities
-│           ├── mod.rs
-│           └── logger.rs
-├── README.md
-├── samconfig.toml              # SAM CLI configuration
-└── template.yaml               # SAM template
-```
-
-```
-bustleit-backend-serverless/
+bustleit-backend-aws/
 ├── events/
 │   └── test-events/
-│       ├── auth.json
-│       ├── profile.json
-│       └── tasks.json
+│       ├── auth.json           # Test events for authentication
+│       ├── ai.json            # Test events for AI endpoints (now just forwarding)
+│       └── profile.json       # Test events for user profile endpoints
 ├── rust_app/
 │   ├── src/
-│   │   ├── domain/           # Core business logic and types
-│   │   │   ├── auth.rs      # Authentication domain logic
-│   │   │   ├── profile.rs   # User profile domain logic
-│   │   │   ├── tasks.rs     # Task management domain logic
-│   │   │   └── mod.rs
-│   │   ├── routes/          # API route handlers
-│   │   │   ├── auth.rs      # Auth-related endpoints
-│   │   │   ├── profile.rs   # Profile-related endpoints
-│   │   │   ├── tasks.rs     # Task-related endpoints
-│   │   │   └── mod.rs
-│   │   ├── store/           # Database interactions
-│   │   │   ├── mongodb.rs   # MongoDB specific implementation
-│   │   │   ├── error.rs     # Storage-specific errors
-│   │   │   └── mod.rs
-│   │   ├── error.rs         # Application error types
-│   │   ├── config.rs        # Configuration management
-│   │   └── lib.rs          # Library interface
-│   │   └── main.rs         # Lambda entry point
+│   │   ├── handlers/          # Lambda function handlers
+│   │   │   ├── mod.rs
+│   │   │   ├── auth.rs        # Handles /login endpoints
+│   │   │   ├── ai.rs          # Handles /ai endpoints (forwards to external service)
+│   │   │   └── profile.rs     # Handles user profile management
+│   │   ├── models/            # Data models
+│   │   │   ├── mod.rs
+│   │   │   ├── auth.rs        # AuthPayload, AuthResponse etc.
+│   │   │   ├── ai.rs          # AI request/response types
+│   │   │   └── profile.rs     # UserProfile types
+│   │   ├── services/          # Business logic
+│   │   │   ├── mod.rs
+│   │   │   ├── auth.rs        # Authentication logic
+│   │   │   ├── dynamodb.rs    # DynamoDB interaction logic
+│   │   │   └── external.rs    # External API calls (e.g., AI service)
+│   │   ├── utils/             # Shared utilities
+│   │   │   ├── mod.rs
+│   │   │   ├── error.rs       # Error types and handling
+│   │   │   └── config.rs      # Configuration management
+│   │   ├── lib.rs             # Library interface
+│   │   └── main.rs            # Lambda entry point
 │   ├── Cargo.toml
-│   └── .env
-├── template.yaml
-├── samconfig.toml
+│   └── .env                   # Environment variables (for local development)
+├── template.yaml              # SAM template
+├── samconfig.toml            # SAM configuration
 └── README.md
 ```
