@@ -2,7 +2,7 @@ use axum::{http::StatusCode, Json};
 use rand::Rng;
 use tracing::info;
 
-use crate::models::recommend::{RecommendationInput, RecommendationResponse};
+use crate::models::ai::{RecommendationInput, RecommendationResponse};
 use crate::services::mock_db::MockDb;
 
 // POST /recommend

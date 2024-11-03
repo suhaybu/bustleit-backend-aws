@@ -10,7 +10,6 @@ pub struct LoginRequest {
 #[derive(Debug, Serialize)]
 pub struct LoginResponse {
     pub status: String,
-    pub message: String,
     pub token: Option<String>,
 }
 

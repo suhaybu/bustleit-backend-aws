@@ -1,7 +1,8 @@
 use axum::{http::StatusCode, Json};
 use tracing::info;
 
-use crate::models::ai::*;
+use crate::models::ai::ClusteredUsers;
+use crate::models::userdata::{SchedulesRequest, Task, UserProfile, UserProfileRequest, UserTask};
 use crate::services::mock_db::MockDb;
 
 // POST /ai/request/userdata/
@@ -15,7 +16,7 @@ pub async fn get_userdata(
 }
 
 // GET /ai/request/allusers/
-pub async fn get_all_users() -> Result<Json<Vec<RawProfile>>, (StatusCode, Json<serde_json::Value>)>
+pub async fn get_all_users() -> Result<Json<Vec<UserProfile>>, (StatusCode, Json<serde_json::Value>)>
 {
     info!("Fetching all users raw profiles");
 

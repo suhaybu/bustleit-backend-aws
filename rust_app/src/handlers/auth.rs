@@ -1,17 +1,6 @@
 use axum::{http::StatusCode, Json};
-use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize)]
-pub struct LoginRequest {
-    username: String,
-    password: String,
-}
-
-#[derive(Serialize)]
-pub struct LoginResponse {
-    status: String,
-    token: Option<String>,
-}
+use crate::models::auth::{LoginRequest, LoginResponse};
 
 pub async fn login(
     Json(payload): Json<LoginRequest>,

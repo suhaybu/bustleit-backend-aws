@@ -1,5 +1,8 @@
-use crate::models::ai::*;
-use crate::models::TaskRecommendation;
+use crate::models::ai::{ClusteredUsers, TaskRecommendation};
+use crate::models::userdata::{
+    DailySchedule, PersonalityScores, Task, UserProfile, UserProfileRequest, UserTask,
+};
+
 use std::sync::OnceLock;
 
 // Static storage for our mock database
@@ -14,7 +17,7 @@ fn get_mock_users() -> &'static Vec<UserProfile> {
         vec![
             UserProfile {
                 id: 1,
-                scores: UserScores {
+                scores: PersonalityScores {
                     introverted: 70.0,
                     extraverted: 30.0,
                     observant: 65.0,
@@ -30,7 +33,7 @@ fn get_mock_users() -> &'static Vec<UserProfile> {
             },
             UserProfile {
                 id: 2,
-                scores: UserScores {
+                scores: PersonalityScores {
                     introverted: 40.0,
                     extraverted: 60.0,
                     observant: 45.0,
@@ -106,21 +109,23 @@ impl MockDb {
             .collect()
     }
 
-    pub async fn get_all_userdata() -> Vec<RawProfile> {
+    pub async fn get_all_userdata() -> Vec<UserProfile> {
         get_mock_users()
             .iter()
-            .map(|user| RawProfile {
+            .map(|user| UserProfile {
                 id: user.id,
-                introverted: user.scores.introverted,
-                extraverted: user.scores.extraverted,
-                observant: user.scores.observant,
-                intuitive: user.scores.intuitive,
-                thinking: user.scores.thinking,
-                feeling: user.scores.feeling,
-                judging: user.scores.judging,
-                prospecting: user.scores.prospecting,
-                assertive: user.scores.assertive,
-                turbulent: user.scores.turbulent,
+                scores: PersonalityScores {
+                    introverted: user.scores.introverted,
+                    extraverted: user.scores.extraverted,
+                    observant: user.scores.observant,
+                    intuitive: user.scores.intuitive,
+                    thinking: user.scores.thinking,
+                    feeling: user.scores.feeling,
+                    judging: user.scores.judging,
+                    prospecting: user.scores.prospecting,
+                    assertive: user.scores.assertive,
+                    turbulent: user.scores.turbulent,
+                },
                 preferences: user.preferences.clone(),
             })
             .collect()
