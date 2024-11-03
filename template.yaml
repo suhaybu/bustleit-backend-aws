@@ -3,42 +3,84 @@ Transform: AWS::Serverless-2016-10-31
 Description: >
   bustleit-backend-serverless
 
-  Sample SAM Template for bustleit-backend-serverless
-
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
-    Timeout: 3
+    Timeout: 30 # Increased from 3 to 30 seconds
     MemorySize: 128
+    Runtime: provided.al2023
+    Architectures:
+      - arm64
 
 Resources:
-  HelloWorldFunction:
-    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+  BustleitFunction: # Changed from HelloWorldFunction to BustleitFunction
+    Type: AWS::Serverless::Function
     Metadata:
-      BuildMethod: rust-cargolambda # More info about Cargo Lambda: https://github.com/cargo-lambda/cargo-lambda
+      BuildMethod: rust-cargolambda
     Properties:
-      CodeUri: ./rust_app # Points to dir of Cargo.toml
-      Handler: bootstrap # Do not change, as this is the default executable name produced by Cargo Lambda
-      Runtime: provided.al2023
-      Architectures:
-        - arm64
+      CodeUri: ./rust_app
+      Handler: bootstrap
       Events:
-        HelloWorld:
-          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+        # Auth routes
+        AuthLogin:
+          Type: Api
           Properties:
-            Path: /hello
+            Path: /auth/login
+            Method: post
+
+        # AI routes
+        AiUserData:
+          Type: Api
+          Properties:
+            Path: /ai/request/userdata
+            Method: post
+        AiAllUsers:
+          Type: Api
+          Properties:
+            Path: /ai/request/allusers
+            Method: get
+        AiClusteredUsers:
+          Type: Api
+          Properties:
+            Path: /ai/request/clusteredUsers
+            Method: get
+        AiSchedules:
+          Type: Api
+          Properties:
+            Path: /ai/request/schedules
+            Method: post
+        AiTasks:
+          Type: Api
+          Properties:
+            Path: /ai/request/tasks
+            Method: get
+        AiTaskedUsers:
+          Type: Api
+          Properties:
+            Path: /ai/request/taskedUsers
+            Method: get
+
+        # Recommend routes
+        RecommendPost:
+          Type: Api
+          Properties:
+            Path: /recommend
+            Method: post
+
+        # Health check
+        HealthCheck:
+          Type: Api
+          Properties:
+            Path: /health
             Method: get
 
 Outputs:
-  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
-  # Find out more about other implicit resources you can reference within SAM
-  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
-  HelloWorldApi:
-    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
-  HelloWorldFunction:
-    Description: "Hello World Lambda Function ARN"
-    Value: !GetAtt HelloWorldFunction.Arn
-  HelloWorldFunctionIamRole:
-    Description: "Implicit IAM Role created for Hello World function"
-    Value: !GetAtt HelloWorldFunctionRole.Arn
+  BustleitApi: # Changed from HelloWorldApi
+    Description: "API Gateway endpoint URL for Prod stage"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+  BustleitFunction: # Changed from HelloWorldFunction
+    Description: "Lambda Function ARN"
+    Value: !GetAtt BustleitFunction.Arn
+  BustleitFunctionIamRole: # Changed from HelloWorldFunctionIamRole
+    Description: "Implicit IAM Role created for Bustleit function"
+    Value: !GetAtt BustleitFunctionRole.Arn
