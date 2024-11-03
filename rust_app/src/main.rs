@@ -2,6 +2,11 @@ use lambda_runtime::{service_fn, Error, LambdaEvent};
 
 use serde::{Deserialize, Serialize};
 
+mod handlers;
+mod models;
+mod services;
+mod utils;
+
 /// This is a made-up example. Requests come into the runtime as unicode
 /// strings in json format, which can map to any structure that implements `serde::Deserialize`
 /// The runtime pays no attention to the contents of the request payload.
