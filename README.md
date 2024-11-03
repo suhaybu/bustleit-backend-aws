@@ -130,6 +130,33 @@ Next, you can use AWS Serverless Application Repository to deploy ready-to-use a
 
 ## File structure for now
 ```
+.
+├── events/
+│   └── event.json
+├── rust_app/
+│   ├── Cargo.toml
+│   └── src/
+│       ├── main.rs              # Entry point with Lambda handler
+│       ├── lib.rs               # Library code and module definitions
+│       ├── handlers/            # Lambda function handlers
+│       │   ├── mod.rs
+│       │   ├── health.rs
+│       │   └── error.rs
+│       ├── models/              # Data models and schemas
+│       │   ├── mod.rs
+│       │   └── response.rs
+│       ├── services/            # Business logic layer
+│       │   ├── mod.rs
+│       │   └── example_service.rs
+│       └── utils/               # Shared utilities
+│           ├── mod.rs
+│           └── logger.rs
+├── README.md
+├── samconfig.toml              # SAM CLI configuration
+└── template.yaml               # SAM template
+```
+
+```
 bustleit-backend-serverless/
 ├── events/
 │   └── test-events/
