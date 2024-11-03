@@ -1,4 +1,4 @@
-use lambda_runtime::{run, service_fn, Error, LambdaEvent};
+use lambda_runtime::{service_fn, Error, LambdaEvent};
 
 use serde::{Deserialize, Serialize};
 
@@ -6,8 +6,7 @@ use serde::{Deserialize, Serialize};
 /// strings in json format, which can map to any structure that implements `serde::Deserialize`
 /// The runtime pays no attention to the contents of the request payload.
 #[derive(Deserialize)]
-struct Request {
-}
+struct Request {}
 
 /// This is a made-up example of what a response structure may look like.
 /// There is no restriction on what it can be. The runtime requires responses
@@ -45,5 +44,5 @@ async fn main() -> Result<(), Error> {
         .without_time()
         .init();
 
-    run(service_fn(function_handler)).await
+    lambda_runtime::run(service_fn(function_handler)).await
 }
