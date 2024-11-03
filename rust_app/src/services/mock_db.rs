@@ -160,6 +160,7 @@ impl MockDb {
             .collect()
     }
 
+    #[allow(unused_variables)]
     pub async fn get_recommendations(
         scores: Vec<f64>,
         preferences: Vec<String>,
