@@ -47,10 +47,10 @@ async fn main() -> Result<(), Error> {
         )
         // Recommend routes
         .route("/recommend", post(handlers::recommend::get_recommendation))
-        // .route(
-        //     "/recommend/test",
-        //     get(handlers::recommend::get_test_recommendation),
-        // )
+        .route(
+            "/recommend/test",
+            get(handlers::recommend::get_test_recommendation),
+        )
         // Profile routes
         // .route(
         //     "/profile",
