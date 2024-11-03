@@ -8,7 +8,7 @@ This project contains source code and supporting files for a serverless applicat
 
 The application uses several AWS resources, including Lambda functions and an API Gateway API. These resources are defined in the `template.yaml` file in this project. You can update the template to add AWS resources through the same deployment process that updates your application code.
 
-If you prefer to use an integrated development environment (IDE) to build and test your application, you can use the AWS Toolkit.  
+If you prefer to use an integrated development environment (IDE) to build and test your application, you can use the AWS Toolkit.
 The AWS Toolkit is an open source plug-in for popular IDEs that uses the SAM CLI to build and deploy serverless applications on AWS. The AWS Toolkit also adds a simplified step-through debugging experience for Lambda function code. See the following links to get started.
 
 * [CLion](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
@@ -126,3 +126,39 @@ sam delete
 See the [AWS SAM developer guide](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/what-is-sam.html) for an introduction to SAM specification, the SAM CLI, and serverless application concepts.
 
 Next, you can use AWS Serverless Application Repository to deploy ready-to-use apps that go beyond hello world samples and learn how authors developed their applications: [AWS Serverless Application Repository main page](https://aws.amazon.com/serverless/serverlessrepo/).
+
+
+## File structure for now
+```
+bustleit-backend-serverless/
+├── events/
+│   └── test-events/
+│       ├── auth.json
+│       ├── profile.json
+│       └── tasks.json
+├── rust_app/
+│   ├── src/
+│   │   ├── domain/           # Core business logic and types
+│   │   │   ├── auth.rs      # Authentication domain logic
+│   │   │   ├── profile.rs   # User profile domain logic
+│   │   │   ├── tasks.rs     # Task management domain logic
+│   │   │   └── mod.rs
+│   │   ├── routes/          # API route handlers
+│   │   │   ├── auth.rs      # Auth-related endpoints
+│   │   │   ├── profile.rs   # Profile-related endpoints
+│   │   │   ├── tasks.rs     # Task-related endpoints
+│   │   │   └── mod.rs
+│   │   ├── store/           # Database interactions
+│   │   │   ├── mongodb.rs   # MongoDB specific implementation
+│   │   │   ├── error.rs     # Storage-specific errors
+│   │   │   └── mod.rs
+│   │   ├── error.rs         # Application error types
+│   │   ├── config.rs        # Configuration management
+│   │   └── lib.rs          # Library interface
+│   │   └── main.rs         # Lambda entry point
+│   ├── Cargo.toml
+│   └── .env
+├── template.yaml
+├── samconfig.toml
+└── README.md
+```
