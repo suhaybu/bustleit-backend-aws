@@ -1,5 +1,56 @@
 # bustleit-backend-serverless
 
+## New Project structure
+```
+bustleit-backend-aws/
+├── Cargo.toml                 # Workspace manifest
+├── template.yaml              # SAM template with multiple functions
+├── samconfig.toml
+├── events/
+│   └── test-events/
+│       ├── auth/
+│       │   └── login.json
+│       ├── ai/
+│       │   ├── userdata.json
+│       │   └── clustered.json
+│       └── recommend/
+│           └── recommend.json
+├── crates/
+│   ├── common/               # Shared code between functions
+│   │   ├── Cargo.toml
+│   │   └── src/
+│   │       ├── models/      # Shared models
+│   │       │   ├── auth.rs
+│   │       │   ├── ai.rs
+│   │       │   └── mod.rs
+│   │       ├── error.rs     # Common error types
+│   │       ├── config.rs    # Shared configuration
+│   │       └── lib.rs
+│   │
+│   ├── auth-lambda/         # Authentication Lambda
+│   │   ├── Cargo.toml
+│   │   └── src/
+│   │       ├── handlers/
+│   │       │   └── login.rs
+│   │       └── main.rs
+│   │
+│   ├── ai-lambda/           # AI-related Lambda
+│   │   ├── Cargo.toml
+│   │   └── src/
+│   │       ├── handlers/
+│   │       │   ├── userdata.rs
+│   │       │   └── cluster.rs
+│   │       └── main.rs
+│   │
+│   └── recommend-lambda/    # Recommendation Lambda
+│       ├── Cargo.toml
+│       └── src/
+│           ├── handlers/
+│           │   └── recommend.rs
+│           └── main.rs
+└── README.md
+```
+
 ## Project structure
 ```
 bustleit-backend-aws/
