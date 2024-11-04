@@ -2,8 +2,8 @@ use axum::{http::StatusCode, Json};
 use rand::Rng;
 use tracing::info;
 
-use crate::models::ai::{RecommendationInput, RecommendationResponse};
-use crate::services::mock_db::MockDb;
+use common::models::ai::{RecommendationInput, RecommendationResponse};
+use common::services::mock_db::MockDb;
 
 // POST /recommend
 pub async fn get_recommendation(

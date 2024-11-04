@@ -1,9 +1,9 @@
 use axum::{http::StatusCode, Json};
 use tracing::info;
 
-use crate::models::ai::ClusteredUsers;
-use crate::models::userdata::{SchedulesRequest, Task, UserProfile, UserProfileRequest, UserTask};
-use crate::services::mock_db::MockDb;
+use common::models::ai::ClusteredUsers;
+use common::models::userdata::{SchedulesRequest, Task, UserProfile, UserProfileRequest, UserTask};
+use common::services::mock_db::MockDb;
 
 // POST /ai/request/userdata/
 pub async fn get_userdata(
