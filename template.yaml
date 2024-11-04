@@ -3,90 +3,106 @@ Transform: AWS::Serverless-2016-10-31
 Description: >
   bustleit-backend-serverless
 
-# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
-    Timeout: 5 # Increased from 3 to 5 seconds
+    Timeout: 5
     MemorySize: 128
     Runtime: provided.al2023
     Architectures:
       - arm64
 
 Resources:
-  BustleitFunction: # Changed from HelloWorldFunction to BustleitFunction
+  AuthFunction:
     Type: AWS::Serverless::Function
     Metadata:
       BuildMethod: rust-cargolambda
     Properties:
-      CodeUri: ./rust_app
+      CodeUri: ./crates/auth-lambda
       Handler: bootstrap
       Events:
-        # Auth routes
-        AuthLogin:
+        Login:
           Type: Api
           Properties:
             Path: /auth/login
             Method: post
 
-        # AI routes
-        AiUserData:
+  AiFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: rust-cargolambda
+    Properties:
+      CodeUri: ./crates/ai-lambda
+      Handler: bootstrap
+      Events:
+        UserData:
           Type: Api
           Properties:
             Path: /ai/request/userdata
             Method: post
-        AiAllUsers:
+        AllUsers:
           Type: Api
           Properties:
             Path: /ai/request/allusers
             Method: get
-        AiClusteredUsers:
+        ClusteredUsers:
           Type: Api
           Properties:
             Path: /ai/request/clusteredUsers
             Method: get
-        AiSchedules:
-          Type: Api
-          Properties:
-            Path: /ai/request/schedules
-            Method: post
-        AiTasks:
+        Tasks:
           Type: Api
           Properties:
             Path: /ai/request/tasks
             Method: get
-        AiTaskedUsers:
+        TaskedUsers:
           Type: Api
           Properties:
             Path: /ai/request/taskedUsers
             Method: get
+        Schedules:
+          Type: Api
+          Properties:
+            Path: /ai/request/schedules
+            Method: post
 
-        # Recommend routes
-        RecommendPost:
+  RecommendFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: rust-cargolambda
+    Properties:
+      CodeUri: ./crates/recommend-lambda
+      Handler: bootstrap
+      Events:
+        Recommend:
           Type: Api
           Properties:
             Path: /recommend
             Method: post
-
         RecommendTest:
           Type: Api
           Properties:
             Path: /recommend/test
             Method: get
 
-        # Health check
-        HealthCheck:
-          Type: Api
-          Properties:
-            Path: /health
-            Method: get
-
 Outputs:
-  BustleitApi: # Changed from HelloWorldApi
+  ApiEndpoint:
     Description: "API Gateway endpoint URL for Prod stage"
     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
-  BustleitFunction: # Changed from HelloWorldFunction
-    Description: "Lambda Function ARN"
-    Value: !GetAtt BustleitFunction.Arn
-  BustleitFunctionIamRole: # Changed from HelloWorldFunctionIamRole
-    Description: "Implicit IAM Role created for Bustleit function"
-    Value: !GetAtt BustleitFunctionRole.Arn
+  AuthFunctionArn:
+    Description: "Auth Lambda Function ARN"
+    Value: !GetAtt AuthFunction.Arn
+  AiFunctionArn:
+    Description: "AI Lambda Function ARN"
+    Value: !GetAtt AiFunction.Arn
+  RecommendFunctionArn:
+    Description: "Recommend Lambda Function ARN"
+    Value: !GetAtt RecommendFunction.Arn
+  AuthFunctionRole:
+    Description: "IAM Role created for Auth function"
+    Value: !GetAtt AuthFunctionRole.Arn
+  AiFunctionRole:
+    Description: "IAM Role created for AI function"
+    Value: !GetAtt AiFunctionRole.Arn
+  RecommendFunctionRole:
+    Description: "IAM Role created for Recommend function"
+    Value: !GetAtt RecommendFunctionRole.Arn
