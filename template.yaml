@@ -6,7 +6,7 @@ Description: >
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
-    Timeout: 30 # Increased from 3 to 30 seconds
+    Timeout: 5 # Increased from 3 to 5 seconds
     MemorySize: 128
     Runtime: provided.al2023
     Architectures:
@@ -66,6 +66,12 @@ Resources:
           Properties:
             Path: /recommend
             Method: post
+
+        RecommendTest:
+          Type: Api
+          Properties:
+            Path: /recommend/test
+            Method: get
 
         # Health check
         HealthCheck:
