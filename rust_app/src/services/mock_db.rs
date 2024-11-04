@@ -170,25 +170,38 @@ impl MockDb {
         scores: Vec<f32>,
         preferences: Vec<String>,
         work_end_time: i32,
+        sleep_time: i32,
     ) -> Vec<TaskRecommendation> {
         let mut recommendations = vec![
             TaskRecommendation {
                 task_name: "Morning Exercise".to_string(),
                 score: 0.85,
                 category: "Health".to_string(),
-                suggested_time: "08:00".to_string(),
+                suggested_time: 800, // 8:00 AM
             },
             TaskRecommendation {
                 task_name: "Study Programming".to_string(),
                 score: 0.75,
                 category: "Learning".to_string(),
-                suggested_time: "10:00".to_string(),
+                suggested_time: 1000, // 10:00 AM
             },
             TaskRecommendation {
                 task_name: "Financial Planning".to_string(),
                 score: 0.70,
                 category: "Finance".to_string(),
-                suggested_time: "14:00".to_string(),
+                suggested_time: 1400, // 2:00 PM
+            },
+            TaskRecommendation {
+                task_name: "Evening Workout".to_string(),
+                score: 0.65,
+                category: "Health".to_string(),
+                suggested_time: 1730, // 5:30 PM
+            },
+            TaskRecommendation {
+                task_name: "Reading Time".to_string(),
+                score: 0.60,
+                category: "Learning".to_string(),
+                suggested_time: 2045, // 8:45 PM
             },
         ];
 

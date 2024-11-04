@@ -15,9 +15,13 @@ pub async fn get_recommendation(
     );
 
     // Get recommendations from mock service
-    let recommendations =
-        MockDb::get_recommendations(payload.scores, payload.preferences, payload.work_end_time)
-            .await;
+    let recommendations = MockDb::get_recommendations(
+        payload.scores,
+        payload.preferences,
+        payload.work_end_time,
+        payload.sleep_time,
+    )
+    .await;
 
     let total_tasks = recommendations.len();
 
@@ -45,10 +49,16 @@ pub async fn get_test_recommendation(
         "Finance".to_string(),
     ];
     let test_work_end_time = 18; // 6 PM
+    let test_sleep_time = 23; // 11 PM
 
     // Get recommendations using test data
-    let recommendations =
-        MockDb::get_recommendations(test_scores, test_preferences, test_work_end_time).await;
+    let recommendations = MockDb::get_recommendations(
+        test_scores,
+        test_preferences,
+        test_work_end_time,
+        test_sleep_time,
+    )
+    .await;
 
     let total_tasks = recommendations.len();
 
