@@ -6,6 +6,7 @@ pub struct RecommendationInput {
     pub preferences: Vec<String>,
     pub work_end_time: i32,
     pub sleep_time: i32,
+    pub user_id: i32,
 }
 
 #[derive(Debug, Serialize, Clone)]
