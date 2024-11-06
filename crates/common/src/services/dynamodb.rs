@@ -42,14 +42,15 @@ impl DynamoDbClient {
         format!("STATS#USER#{}", user_id)
     }
 
+    // Read Operations
     pub async fn get_user_profiles(
         &self,
         req: &UserProfileRequest,
     ) -> Result<Vec<UserProfile>, DynamoDbError> {
         let mut profiles = Vec::new();
 
-        for id in &req.ids {
-            let pk = Self::create_user_pk(id);
+        for user_id in &req.user_ids {
+            let pk = Self::create_user_pk(user_id);
             let sk = Self::create_profile_sk();
 
             match self
@@ -63,17 +64,21 @@ impl DynamoDbClient {
             {
                 Ok(output) => {
                     if let Some(item) = output.item {
-                        match self.convert_to_user_profile(&item, id) {
+                        match self.convert_to_user_profile(&item, user_id) {
                             Ok(profile) => profiles.push(profile),
                             Err(e) => {
-                                tracing::error!("Failed to convert profile for user {}: {}", id, e);
+                                tracing::error!(
+                                    "Failed to convert profile for user {}: {}",
+                                    user_id,
+                                    e
+                                );
                                 continue;
                             }
                         }
                     }
                 }
                 Err(e) => {
-                    tracing::error!("DynamoDB error for user {}: {}", id, e);
+                    tracing::error!("DynamoDB error for user {}: {}", user_id, e);
                     return Err(DynamoDbError::ConnectionError(e.to_string()));
                 }
             }
