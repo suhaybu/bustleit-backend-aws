@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Schedule {
-    pub user_id: i32,
+    pub user_id: String,
     pub time_slots: Vec<TimeSlot>,
 }
 
@@ -21,7 +21,7 @@ pub struct Task {
 
 #[derive(Debug, Serialize, Clone)]
 pub struct UserTask {
-    pub id: i32,
+    pub id: String,
     pub tasks: Vec<String>,
 }
 

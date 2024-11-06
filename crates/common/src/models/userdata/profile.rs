@@ -3,14 +3,14 @@ use serde::{Deserialize, Serialize};
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 pub struct UserProfileRequest {
-    pub ids: Vec<i32>,
+    pub ids: Vec<String>,
     pub req_scores: bool,
     pub req_preferences: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct UserProfile {
-    pub id: i32,
+    pub id: String,
     pub scores: PersonalityScores,
     pub preferences: Vec<String>,
 }
