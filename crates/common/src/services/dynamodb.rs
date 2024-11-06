@@ -24,12 +24,22 @@ impl DynamoDbClient {
         Ok(Self { client, table_name })
     }
 
+    // Creating Keys
+    // pk = Primary Key, sk = Secondary KeyZ
     fn create_user_pk(user_id: &str) -> String {
         format!("USER#{}", user_id)
     }
 
     fn create_profile_sk() -> String {
         "PROFILE".to_string()
+    }
+
+    fn create_task_pk(date: &str, task_id: &str) -> String {
+        format!("TASK#DATE#{}#{}", date, task_id)
+    }
+
+    fn create_stats_pk(user_id: &str) -> String {
+        format!("STATS#USER#{}", user_id)
     }
 
     pub async fn get_user_profiles(
