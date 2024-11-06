@@ -19,6 +19,11 @@ Resources:
     Properties:
       CodeUri: ./crates/auth-lambda
       Handler: bootstrap
+      Role: !GetAtt AuthFunctionRole.Arn
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: BustleIt-DB
+          AWS_REGION: me-south-1
       Events:
         Login:
           Type: Api
@@ -33,6 +38,11 @@ Resources:
     Properties:
       CodeUri: ./crates/ai-lambda
       Handler: bootstrap
+      Role: !GetAtt AiFunctionRole.Arn
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: BustleIt-DB
+          AWS_REGION: me-south-1
       Events:
         UserData:
           Type: Api
@@ -72,6 +82,11 @@ Resources:
     Properties:
       CodeUri: ./crates/recommend-lambda
       Handler: bootstrap
+      Role: !GetAtt RecommendFunctionRole.Arn
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: BustleIt-DB
+          AWS_REGION: me-south-1
       Events:
         Recommend:
           Type: Api
@@ -83,6 +98,49 @@ Resources:
           Properties:
             Path: /recommend/test
             Method: get
+
+  # IAM Roles for Lambda Functions
+  AuthFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - !Sub arn:aws:iam::${AWS::AccountId}:policy/BustleItDynamoDBPolicy
+
+  AiFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - !Sub arn:aws:iam::${AWS::AccountId}:policy/BustleItDynamoDBPolicy
+
+  RecommendFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - !Sub arn:aws:iam::${AWS::AccountId}:policy/BustleItDynamoDBPolicy
 
 Outputs:
   ApiEndpoint:
@@ -97,12 +155,3 @@ Outputs:
   RecommendFunctionArn:
     Description: "Recommend Lambda Function ARN"
     Value: !GetAtt RecommendFunction.Arn
-  AuthFunctionRole:
-    Description: "IAM Role created for Auth function"
-    Value: !GetAtt AuthFunctionRole.Arn
-  AiFunctionRole:
-    Description: "IAM Role created for AI function"
-    Value: !GetAtt AiFunctionRole.Arn
-  RecommendFunctionRole:
-    Description: "IAM Role created for Recommend function"
-    Value: !GetAtt RecommendFunctionRole.Arn
