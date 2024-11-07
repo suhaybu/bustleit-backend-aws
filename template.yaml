@@ -44,6 +44,16 @@ Resources:
           DYNAMODB_TABLE: BustleIt-DB
           AWS_REGION: me-south-1
       Events:
+        UserSchedule:
+          Type: Api
+          Properties:
+            Path: /v1/users/{userId}/schedule
+            Method: get
+        UserScheduleMonth:
+          Type: Api
+          Properties:
+            Path: /v1/users/{userId}/schedule/month/{month}
+            Method: get
         UserData:
           Type: Api
           Properties:
