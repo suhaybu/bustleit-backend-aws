@@ -18,7 +18,10 @@ async fn main() -> Result<(), Error> {
     set_var("AWS_LAMBDA_HTTP_IGNORE_STAGE_IN_PATH", "true");
 
     let app = Router::new()
-        .route("/ai/request/userdata", post(handlers::ai::get_userdata))
+        .route(
+            "/ai/request/userprofile",
+            get(handlers::ai::get_userprofile),
+        )
         .route("/ai/request/allusers", get(handlers::ai::get_all_users))
         .route(
             "/ai/request/clusteredUsers",
@@ -29,6 +32,15 @@ async fn main() -> Result<(), Error> {
         .route(
             "/ai/request/taskedUsers",
             get(handlers::ai::get_tasked_users),
+        )
+        // New schedule routes
+        .route(
+            "/v1/users/:user_id/schedule",
+            get(handlers::schedule::get_user_schedule),
+        )
+        .route(
+            "/v1/users/:user_id/schedule/month/:month",
+            get(handlers::schedule::get_user_schedule_month),
         );
 
     run(app).await
