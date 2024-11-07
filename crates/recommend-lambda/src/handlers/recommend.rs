@@ -3,7 +3,6 @@ use rand::Rng;
 use tracing::info;
 
 use common::models::ai::{RecommendationInput, RecommendationResponse};
-use common::services::mock_db::MockDb;
 
 // POST /recommend
 pub async fn get_recommendation(
