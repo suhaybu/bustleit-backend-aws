@@ -1,10 +1,10 @@
 use aws_config::BehaviorVersion;
-use aws_sdk_dynamodb::types::AttributeValue;
-use aws_sdk_dynamodb::Client;
+use aws_sdk_dynamodb::{types::AttributeValue, Client};
 use std::collections::HashMap;
 use std::env;
 
-use crate::models::userdata::{PersonalityScores, UserProfile, UserProfileRequest};
+use crate::models::dynamodb::{Scores, Task, UserProfile, UserTasks};
+use crate::models::userdata::UserProfileRequest;
 use crate::utils::error::DynamoDbError;
 
 pub struct DynamoDbClient {
@@ -43,67 +43,129 @@ impl DynamoDbClient {
     }
 
     // Read Operations
+
+    pub async fn get_user_profile(&self, user_id: &str) -> Result<UserProfile, DynamoDbError> {
+        let pk = format!("USER#{}", user_id);
+        let sk = "PROFILE".to_string();
+
+        let result = self
+            .client
+            .get_item()
+            .table_name(&self.table_name)
+            .key("PK", AttributeValue::S(pk))
+            .key("SK", AttributeValue::S(sk))
+            .send()
+            .await
+            .map_err(|e| DynamoDbError::ConnectionError(e.to_string()))?;
+
+        match result.item {
+            Some(item) => self.convert_to_user_profile(&item),
+            None => Err(DynamoDbError::NotFound(format!(
+                "User profile not found for user_id: {}",
+                user_id
+            ))),
+        }
+    }
+
+    pub async fn get_users_by_cluster(
+        &self,
+        cluster: i32,
+    ) -> Result<Vec<UserProfile>, DynamoDbError> {
+        let gsi1pk = format!("CLUSTER#{}", cluster);
+
+        let result = self
+            .client
+            .query()
+            .table_name(&self.table_name)
+            .index_name("GSI1")
+            .key_condition_expression("GSI1PK = :cluster")
+            .expression_attribute_values(":cluster", AttributeValue::S(gsi1pk))
+            .send()
+            .await
+            .map_err(|e| DynamoDbError::ConnectionError(e.to_string()))?;
+
+        match result.items {
+            Some(items) => {
+                let profiles: Vec<Result<UserProfile, DynamoDbError>> = items
+                    .into_iter()
+                    .map(|item| self.convert_to_user_profile(&item))
+                    .collect();
+
+                // Filter out any conversion errors and collect successful conversions
+                let valid_profiles: Vec<UserProfile> = profiles
+                    .into_iter()
+                    .filter_map(|result| result.ok())
+                    .collect();
+
+                if valid_profiles.is_empty() {
+                    Err(DynamoDbError::NotFound(format!(
+                        "No user profiles found for cluster {}",
+                        cluster
+                    )))
+                } else {
+                    Ok(valid_profiles)
+                }
+            }
+            None => Err(DynamoDbError::NotFound(format!(
+                "No users found in cluster {}",
+                cluster
+            ))),
+        }
+    }
+
+    // For AI only
     pub async fn get_user_profiles(
         &self,
         req: &UserProfileRequest,
     ) -> Result<Vec<UserProfile>, DynamoDbError> {
         let mut profiles = Vec::new();
-
         for user_id in &req.user_ids {
-            let pk = Self::create_user_pk(user_id);
-            let sk = Self::create_profile_sk();
-
-            match self
-                .client
-                .get_item()
-                .table_name(&self.table_name)
-                .key("PK", AttributeValue::S(pk))
-                .key("SK", AttributeValue::S(sk))
-                .send()
-                .await
-            {
-                Ok(output) => {
-                    if let Some(item) = output.item {
-                        match self.convert_to_user_profile(&item, user_id) {
-                            Ok(profile) => profiles.push(profile),
-                            Err(e) => {
-                                tracing::error!(
-                                    "Failed to convert profile for user {}: {}",
-                                    user_id,
-                                    e
-                                );
-                                continue;
-                            }
-                        }
-                    }
-                }
+            match self.get_user_profile(user_id).await {
+                Ok(profile) => profiles.push(profile),
+                Err(DynamoDbError::NotFound(_)) => continue,
                 Err(e) => {
                     tracing::error!("DynamoDB error for user {}: {}", user_id, e);
-                    return Err(DynamoDbError::ConnectionError(e.to_string()));
+                    return Err(e);
                 }
             }
         }
-
-        if profiles.is_empty() {
-            return Err(DynamoDbError::NotFound(
-                "No user profiles found".to_string(),
-            ));
-        }
-
         Ok(profiles)
     }
 
+    pub async fn get_user_tasks(&self, uuid: &str, date: &str) -> Result<UserTasks, DynamoDbError> {
+        let pk = format!("USER#{}", uuid);
+        let sk = format!("TASK#DATE#{}", date);
+
+        let result = self
+            .client
+            .get_item()
+            .table_name(&self.table_name)
+            .key("PK", AttributeValue::S(pk))
+            .key("SK", AttributeValue::S(sk))
+            .send()
+            .await
+            .map_err(|e| DynamoDbError::ConnectionError(e.to_string()))?;
+
+        match result.item {
+            Some(item) => self.convert_to_user_tasks(&item),
+            None => {
+                // If no tasks exist for this date, return an empty UserTasks object
+                Ok(UserTasks::new(uuid, date))
+            }
+        }
+    }
+
+    // Conversion Helpers
     fn convert_to_user_profile(
         &self,
         item: &HashMap<String, AttributeValue>,
-        id: &str,
     ) -> Result<UserProfile, DynamoDbError> {
         let preferences = if let Some(AttributeValue::L(prefs)) = item.get("preferences") {
             prefs
                 .iter()
                 .filter_map(|av| {
                     if let AttributeValue::S(s) = av {
-                        Some(s.to_string())
+                        Some(s.clone())
                     } else {
                         None
                     }
@@ -114,33 +176,173 @@ impl DynamoDbClient {
         };
 
         let scores = if let Some(AttributeValue::M(scores_map)) = item.get("scores") {
-            PersonalityScores {
-                turbulent: Self::extract_number(scores_map.get("turbulent"))?,
-                introverted: Self::extract_number(scores_map.get("introverted"))?,
-                prospecting: Self::extract_number(scores_map.get("prospecting"))?,
-                judging: Self::extract_number(scores_map.get("judging"))?,
-                assertive: Self::extract_number(scores_map.get("assertive"))?,
-                feeling: Self::extract_number(scores_map.get("feeling"))?,
-                extraverted: Self::extract_number(scores_map.get("extraverted"))?,
-                observant: Self::extract_number(scores_map.get("observant"))?,
-                thinking: Self::extract_number(scores_map.get("thinking"))?,
-                intuitive: Self::extract_number(scores_map.get("intuitive"))?,
+            Scores {
+                turbulent: self.extract_number(scores_map.get("turbulent"))?,
+                introverted: self.extract_number(scores_map.get("introverted"))?,
+                prospecting: self.extract_number(scores_map.get("prospecting"))?,
+                judging: self.extract_number(scores_map.get("judging"))?,
+                assertive: self.extract_number(scores_map.get("assertive"))?,
+                feeling: self.extract_number(scores_map.get("feeling"))?,
+                extraverted: self.extract_number(scores_map.get("extraverted"))?,
+                observant: self.extract_number(scores_map.get("observant"))?,
+                thinking: self.extract_number(scores_map.get("thinking"))?,
+                intuitive: self.extract_number(scores_map.get("intuitive"))?,
             }
         } else {
-            return Err(DynamoDbError::NotFound(format!(
-                "Missing scores map for user {}",
-                id
-            )));
+            return Err(DynamoDbError::ParseError("Missing scores map".to_string()));
         };
 
-        Ok(UserProfile {
-            id: id.to_string(),
-            scores,
+        let cluster = self
+            .extract_number(item.get("cluster"))
+            .map(|n| n as i32)
+            .unwrap_or(0);
+
+        Ok(UserProfile::new(
+            // Extract UUID from PK (remove "USER#" prefix)
+            &item
+                .get("PK")
+                .and_then(|v| v.as_s().ok())
+                .map(|s| s.trim_start_matches("USER#").to_string())
+                .unwrap_or_default(),
+            cluster,
             preferences,
-        })
+            scores,
+        ))
     }
 
-    fn extract_number(attr: Option<&AttributeValue>) -> Result<f32, DynamoDbError> {
+    fn convert_to_user_tasks(
+        &self,
+        item: &HashMap<String, AttributeValue>,
+    ) -> Result<UserTasks, DynamoDbError> {
+        let date = item
+            .get("date")
+            .and_then(|v| v.as_s().ok())
+            .ok_or_else(|| DynamoDbError::ParseError("Missing date".to_string()))?
+            .clone();
+
+        let uuid = item
+            .get("PK")
+            .and_then(|v| v.as_s().ok())
+            .map(|s| s.trim_start_matches("USER#").to_string())
+            .ok_or_else(|| DynamoDbError::ParseError("Missing PK".to_string()))?;
+
+        let mut user_tasks = UserTasks::new(&uuid, &date);
+
+        if let Some(AttributeValue::L(tasks)) = item.get("tasks") {
+            for task_av in tasks {
+                if let AttributeValue::M(task_map) = task_av {
+                    let task = Task::new(
+                        task_map
+                            .get("name")
+                            .and_then(|v| v.as_s().ok())
+                            .unwrap()
+                            .to_string(),
+                        task_map
+                            .get("category")
+                            .and_then(|v| v.as_s().ok())
+                            .unwrap()
+                            .to_string(),
+                        task_map
+                            .get("startTime")
+                            .and_then(|v| v.as_s().ok())
+                            .unwrap()
+                            .to_string(),
+                        task_map
+                            .get("endTime")
+                            .and_then(|v| v.as_s().ok())
+                            .unwrap()
+                            .to_string(),
+                        task_map
+                            .get("taskId")
+                            .and_then(|v| v.as_s().ok())
+                            .unwrap()
+                            .to_string(),
+                    );
+                    user_tasks.add_task(task);
+                }
+            }
+        }
+
+        Ok(user_tasks)
+    }
+
+    fn convert_from_user_tasks(
+        &self,
+        user_tasks: &UserTasks,
+    ) -> Result<HashMap<String, AttributeValue>, DynamoDbError> {
+        let mut item = HashMap::new();
+
+        // Add keys
+        item.insert("PK".to_string(), AttributeValue::S(user_tasks.pk.clone()));
+        item.insert("SK".to_string(), AttributeValue::S(user_tasks.sk.clone()));
+        item.insert(
+            "GSI1PK".to_string(),
+            AttributeValue::S(user_tasks.gsi1pk.clone()),
+        );
+        item.insert(
+            "GSI1SK".to_string(),
+            AttributeValue::S(user_tasks.gsi1sk.clone()),
+        );
+
+        // Add metadata
+        item.insert(
+            "date".to_string(),
+            AttributeValue::S(user_tasks.date.clone()),
+        );
+        item.insert(
+            "completedTasks".to_string(),
+            AttributeValue::N(user_tasks.completed_tasks.to_string()),
+        );
+        item.insert(
+            "totalTasks".to_string(),
+            AttributeValue::N(user_tasks.total_tasks.to_string()),
+        );
+
+        // Convert tasks to AttributeValue
+        let tasks: Vec<AttributeValue> = user_tasks
+            .tasks
+            .iter()
+            .map(|task| {
+                let mut task_map = HashMap::new();
+                task_map.insert("name".to_string(), AttributeValue::S(task.name.clone()));
+                task_map.insert(
+                    "category".to_string(),
+                    AttributeValue::S(task.category.clone()),
+                );
+                task_map.insert(
+                    "startTime".to_string(),
+                    AttributeValue::S(task.start_time.clone()),
+                );
+                task_map.insert(
+                    "endTime".to_string(),
+                    AttributeValue::S(task.end_time.clone()),
+                );
+                task_map.insert(
+                    "taskId".to_string(),
+                    AttributeValue::S(task.task_id.clone()),
+                );
+                task_map.insert(
+                    "completed".to_string(),
+                    AttributeValue::Bool(task.completed),
+                );
+                task_map.insert(
+                    "createdAt".to_string(),
+                    AttributeValue::S(task.created_at.clone()),
+                );
+                task_map.insert(
+                    "updatedAt".to_string(),
+                    AttributeValue::S(task.updated_at.clone()),
+                );
+                AttributeValue::M(task_map)
+            })
+            .collect();
+
+        item.insert("tasks".to_string(), AttributeValue::L(tasks));
+
+        Ok(item)
+    }
+
+    fn extract_number(&self, attr: Option<&AttributeValue>) -> Result<f32, DynamoDbError> {
         match attr {
             Some(AttributeValue::N(num_str)) => num_str
                 .parse::<f32>()
