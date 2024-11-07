@@ -10,6 +10,10 @@ Globals:
     Runtime: provided.al2023
     Architectures:
       - arm64
+    Environment:
+      Variables:
+        DYNAMODB_TABLE: BustleIt-DB
+        AWS_REGION: me-south-1
 
 Resources:
   AuthFunction:
@@ -20,10 +24,6 @@ Resources:
       CodeUri: ./crates/auth-lambda
       Handler: bootstrap
       Role: !GetAtt AuthFunctionRole.Arn
-      Environment:
-        Variables:
-          DYNAMODB_TABLE: BustleIt-DB
-          AWS_REGION: me-south-1
       Events:
         Login:
           Type: Api
@@ -39,51 +39,50 @@ Resources:
       CodeUri: ./crates/ai-lambda
       Handler: bootstrap
       Role: !GetAtt AiFunctionRole.Arn
-      Environment:
-        Variables:
-          DYNAMODB_TABLE: BustleIt-DB
-          AWS_REGION: me-south-1
       Events:
-        UserSchedule:
+        # User Profile Routes
+        ListUsers:
           Type: Api
           Properties:
-            Path: /v1/users/{userId}/schedule
+            Path: /v1/users
             Method: get
-        UserScheduleMonth:
+        GetUserProfile:
           Type: Api
           Properties:
-            Path: /v1/users/{userId}/schedule/month/{month}
+            Path: /v1/users/{id}/profile
             Method: get
-        UserData:
+        GetUserProfilesBatch:
           Type: Api
           Properties:
-            Path: /ai/request/userdata
+            Path: /v1/users/profiles/batch
             Method: post
-        AllUsers:
+        GetUserClusters:
           Type: Api
           Properties:
-            Path: /ai/request/allusers
+            Path: /v1/users/clusters
             Method: get
-        ClusteredUsers:
+        # Task Routes
+        ListTasks:
           Type: Api
           Properties:
-            Path: /ai/request/clusteredUsers
+            Path: /v1/tasks
             Method: get
-        Tasks:
+        GetUserTasks:
           Type: Api
           Properties:
-            Path: /ai/request/tasks
+            Path: /v1/users/{user_id}/tasks
             Method: get
-        TaskedUsers:
+        # Schedule Routes
+        GetUserSchedule:
           Type: Api
           Properties:
-            Path: /ai/request/taskedUsers
+            Path: /v1/users/{user_id}/schedule
             Method: get
-        Schedules:
+        GetUserScheduleMonth:
           Type: Api
           Properties:
-            Path: /ai/request/schedules
-            Method: post
+            Path: /v1/users/{user_id}/schedule/month/{month}
+            Method: get
 
   RecommendFunction:
     Type: AWS::Serverless::Function
@@ -93,10 +92,6 @@ Resources:
       CodeUri: ./crates/recommend-lambda
       Handler: bootstrap
       Role: !GetAtt RecommendFunctionRole.Arn
-      Environment:
-        Variables:
-          DYNAMODB_TABLE: BustleIt-DB
-          AWS_REGION: me-south-1
       Events:
         Recommend:
           Type: Api
@@ -109,7 +104,7 @@ Resources:
             Path: /recommend/test
             Method: get
 
-  # IAM Roles for Lambda Functions
+  # IAM Roles
   AuthFunctionRole:
     Type: AWS::IAM::Role
     Properties:
