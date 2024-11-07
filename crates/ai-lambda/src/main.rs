@@ -18,17 +18,28 @@ async fn main() -> Result<(), Error> {
     set_var("AWS_LAMBDA_HTTP_IGNORE_STAGE_IN_PATH", "true");
 
     let app = Router::new()
-        .route("/ai/request/userdata", post(handlers::ai::get_userdata))
-        .route("/ai/request/allusers", get(handlers::ai::get_all_users))
+        // User Profile Routes
+        .route("/v1/users", get(handlers::ai::list_users))
+        .route("/v1/users/:id/profile", get(handlers::ai::get_user_profile))
         .route(
-            "/ai/request/clusteredUsers",
-            get(handlers::ai::get_clustered_users),
+            "/v1/users/profiles/batch",
+            post(handlers::ai::get_user_profiles_batch),
         )
-        .route("/ai/request/schedules", post(handlers::ai::get_schedules))
-        .route("/ai/request/tasks", get(handlers::ai::get_tasks))
+        .route("/v1/users/clusters", get(handlers::ai::get_user_clusters))
+        // Task Routes
+        .route("/v1/tasks", get(handlers::ai::list_tasks))
         .route(
-            "/ai/request/taskedUsers",
-            get(handlers::ai::get_tasked_users),
+            "/v1/users/:user_id/tasks",
+            get(handlers::ai::get_user_tasks),
+        )
+        // Schedule Routes
+        .route(
+            "/v1/users/:user_id/schedule",
+            get(handlers::schedule::get_user_schedule),
+        )
+        .route(
+            "/v1/users/:user_id/schedule/month/:month",
+            get(handlers::schedule::get_user_schedule_month),
         );
 
     run(app).await
