@@ -21,7 +21,7 @@ pub struct Task {
 
 #[derive(Debug, Serialize, Clone)]
 pub struct UserTask {
-    pub id: String,
+    pub user_id: String,
     pub tasks: Vec<String>,
 }
 

@@ -2,6 +2,6 @@ use serde::Serialize;
 
 #[derive(Debug, Serialize, Clone)]
 pub struct ClusteredUsers {
-    pub id: String,
+    pub user_id: String,
     pub cluster: i32,
 }
