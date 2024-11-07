@@ -19,6 +19,13 @@ pub struct Task {
     pub category: String,
 }
 
+// TODO
+impl Task {
+    pub fn new(name: String, category: String) -> Self {
+        Self { name, category }
+    }
+}
+
 #[derive(Debug, Serialize, Clone)]
 pub struct UserTask {
     pub user_id: String,
