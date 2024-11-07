@@ -15,7 +15,7 @@ bustleit-backend-aws/
 │       │   └── clustered.json
 │       └── recommend/
 │           └── recommend.json
-├── crates/
+├── packages/
 │   ├── common/               # Shared code between functions
 │   │   ├── Cargo.toml
 │   │   └── src/

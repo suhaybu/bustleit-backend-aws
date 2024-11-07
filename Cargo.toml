@@ -1,9 +1,9 @@
 [workspace]
 members = [
-    "crates/common",
-    "crates/auth-lambda",
-    "crates/ai-lambda",
-    "crates/recommend-lambda",
+    "packages/common",
+    "packages/auth-lambda",
+    "packages/ai-lambda",
+    "packages/recommend-lambda",
 ]
 
 [workspace.dependencies]

@@ -21,7 +21,7 @@ Resources:
     Metadata:
       BuildMethod: rust-cargolambda
     Properties:
-      CodeUri: ./crates/auth-lambda
+      CodeUri: ./packages/auth-lambda
       Handler: bootstrap
       Role: !GetAtt AuthFunctionRole.Arn
       Events:
@@ -36,7 +36,7 @@ Resources:
     Metadata:
       BuildMethod: rust-cargolambda
     Properties:
-      CodeUri: ./crates/ai-lambda
+      CodeUri: ./packages/ai-lambda
       Handler: bootstrap
       Role: !GetAtt AiFunctionRole.Arn
       Events:
@@ -89,7 +89,7 @@ Resources:
     Metadata:
       BuildMethod: rust-cargolambda
     Properties:
-      CodeUri: ./crates/recommend-lambda
+      CodeUri: ./packages/recommend-lambda
       Handler: bootstrap
       Role: !GetAtt RecommendFunctionRole.Arn
       Events:
