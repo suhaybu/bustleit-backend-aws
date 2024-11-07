@@ -1,5 +1,23 @@
 use serde::{Deserialize, Serialize};
 
+/* - Create a new day's tasks -
+let mut user_tasks = UserTasks::new(
+    "542172eb-c417-46c0-b9b1-78d1b7630bf5",
+    "2024-11-10"
+);
+
+// Add a task
+let task = Task::new(
+    "Review your goals".to_string(),
+    "Personal Development".to_string(),
+    "18:00".to_string(),
+    "19:00".to_string(),
+    "00df6bba-39df-4c6b-8cf9-93c806f196a1".to_string(),
+);
+
+user_tasks.add_task(task);
+*/
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UserTasks {
     #[serde(rename = "PK")]
