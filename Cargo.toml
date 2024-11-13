@@ -4,6 +4,7 @@ members = [
     "packages/auth-lambda",
     "packages/ai-lambda",
     "packages/recommend-lambda",
+    "packages/userprofile-lambda",
 ]
 
 [workspace.dependencies]
