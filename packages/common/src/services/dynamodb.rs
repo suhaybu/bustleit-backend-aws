@@ -3,7 +3,7 @@ use aws_sdk_dynamodb::{types::AttributeValue, Client};
 use std::collections::HashMap;
 use std::env;
 
-use crate::models::dynamodb::{Scores, Task, UserProfile, UserTasks};
+use crate::models::dynamodb::{Scores, Task, UserProfileDB, UserTasks};
 use crate::models::userdata::UserProfileRequest;
 use crate::utils::error::DynamoDbError;
 
@@ -44,7 +44,7 @@ impl DynamoDbClient {
 
     // Read Operations
 
-    pub async fn get_user_profile(&self, user_id: &str) -> Result<UserProfile, DynamoDbError> {
+    pub async fn get_user_profile(&self, user_id: &str) -> Result<UserProfileDB, DynamoDbError> {
         let pk = format!("USER#{}", user_id);
         let sk = "PROFILE".to_string();
 
@@ -70,7 +70,7 @@ impl DynamoDbClient {
     pub async fn get_user_profiles(
         &self,
         user_ids: Vec<String>,
-    ) -> Result<Vec<UserProfile>, DynamoDbError> {
+    ) -> Result<Vec<UserProfileDB>, DynamoDbError> {
         let keys: Vec<HashMap<String, AttributeValue>> = user_ids
             .iter()
             .map(|id| {
@@ -120,7 +120,7 @@ impl DynamoDbClient {
     pub async fn get_users_by_cluster(
         &self,
         cluster: i32,
-    ) -> Result<Vec<UserProfile>, DynamoDbError> {
+    ) -> Result<Vec<UserProfileDB>, DynamoDbError> {
         let gsi1pk = format!("CLUSTER#{}", cluster);
 
         let result = self
@@ -136,13 +136,13 @@ impl DynamoDbClient {
 
         match result.items {
             Some(items) => {
-                let profiles: Vec<Result<UserProfile, DynamoDbError>> = items
+                let profiles: Vec<Result<UserProfileDB, DynamoDbError>> = items
                     .into_iter()
                     .map(|item| self.convert_to_user_profile(&item))
                     .collect();
 
                 // Filter out any conversion errors and collect successful conversions
-                let valid_profiles: Vec<UserProfile> = profiles
+                let valid_profiles: Vec<UserProfileDB> = profiles
                     .into_iter()
                     .filter_map(|result| result.ok())
                     .collect();
@@ -167,7 +167,7 @@ impl DynamoDbClient {
     pub async fn get_user_profiles_ai(
         &self,
         req: &UserProfileRequest,
-    ) -> Result<Vec<UserProfile>, DynamoDbError> {
+    ) -> Result<Vec<UserProfileDB>, DynamoDbError> {
         let mut profiles = Vec::new();
         for user_id in &req.user_ids {
             match self.get_user_profile(user_id).await {
@@ -209,7 +209,7 @@ impl DynamoDbClient {
     fn convert_to_user_profile(
         &self,
         item: &HashMap<String, AttributeValue>,
-    ) -> Result<UserProfile, DynamoDbError> {
+    ) -> Result<UserProfileDB, DynamoDbError> {
         let preferences = if let Some(AttributeValue::L(prefs)) = item.get("preferences") {
             prefs
                 .iter()
@@ -247,7 +247,7 @@ impl DynamoDbClient {
             .map(|n| n as i32)
             .unwrap_or(0);
 
-        Ok(UserProfile::new(
+        Ok(UserProfileDB::new(
             // Extract UUID from PK (remove "USER#" prefix)
             &item
                 .get("PK")

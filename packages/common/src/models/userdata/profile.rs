@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::models::dynamodb::UserProfile as DbUserProfile;
+use crate::models::dynamodb::UserProfileDB;
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
@@ -32,8 +32,8 @@ pub struct PersonalityScores {
 }
 
 // Convert from DynamoDB UserProfile to userdata UserProfile
-impl From<&DbUserProfile> for UserProfile {
-    fn from(db_profile: &DbUserProfile) -> Self {
+impl From<&UserProfileDB> for UserProfile {
+    fn from(db_profile: &UserProfileDB) -> Self {
         Self {
             user_id: db_profile.pk.trim_start_matches("USER#").to_string(),
             preferences: db_profile.preferences.clone(),
@@ -54,6 +54,6 @@ impl From<&DbUserProfile> for UserProfile {
 }
 
 // Helper function to convert a slice of DynamoDB UserProfiles
-pub fn convert_profiles(db_profiles: &[DbUserProfile]) -> Vec<UserProfile> {
+pub fn convert_profiles(db_profiles: &[UserProfileDB]) -> Vec<UserProfile> {
     db_profiles.iter().map(UserProfile::from).collect()
 }

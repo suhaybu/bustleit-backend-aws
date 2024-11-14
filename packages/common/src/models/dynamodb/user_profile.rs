@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct UserProfile {
+pub struct UserProfileDB {
     #[serde(rename = "PK")]
     pub pk: String, // USER#uuid
     #[serde(rename = "SK")]
@@ -29,7 +29,7 @@ pub struct Scores {
     pub intuitive: f32,
 }
 
-impl UserProfile {
+impl UserProfileDB {
     pub fn new(uuid: &str, cluster: i32, preferences: Vec<String>, scores: Scores) -> Self {
         Self {
             pk: format!("USER#{}", uuid),
