@@ -15,7 +15,7 @@ pub async fn list_users() -> Result<Json<Vec<UserProfile>>, (StatusCode, Json<se
 
     let db = DynamoDbClient::new().await.map_err(handle_error)?;
     let db_profiles = db
-        .get_user_profiles(&UserProfileRequest {
+        .get_user_profiles_ai(&UserProfileRequest {
             user_ids: vec![], // Empty vector to get all users
             req_scores: true,
             req_preferences: true,
@@ -51,7 +51,10 @@ pub async fn get_user_profiles_batch(
     );
 
     let db = DynamoDbClient::new().await.map_err(handle_error)?;
-    let db_profiles = db.get_user_profiles(&payload).await.map_err(handle_error)?;
+    let db_profiles = db
+        .get_user_profiles_ai(&payload)
+        .await
+        .map_err(handle_error)?;
 
     let profiles = userdata::profile::convert_profiles(&db_profiles);
     Ok(Json(profiles))
