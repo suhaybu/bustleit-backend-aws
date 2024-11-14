@@ -1,3 +1,3 @@
-mod profiles;
+mod user_profile;
 
-pub use profiles::{convert_profiles, UserProfile, UserProfilesBatchRequest};
+pub use user_profile::{convert_profiles, UserProfile, UserProfilesBatchRequest};
