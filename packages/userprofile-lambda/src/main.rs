@@ -2,9 +2,10 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use handlers::profiles;
 use lambda_http::{run, Error};
 use std::env::set_var;
+
+use handlers::{profile, profiles};
 
 mod handlers;
 mod models;
@@ -20,7 +21,7 @@ async fn main() -> Result<(), Error> {
     set_var("AWS_LAMBDA_HTTP_IGNORE_STAGE_IN_PATH", "true");
 
     let app = Router::new()
-        .route("/v1/user/profile/:id", get(todo!()))
+        .route("/v1/user/profile/:id", get(profile::get_profile))
         .route("/v1/user/profiles", get(profiles::get_profiles))
         .route("/v1/user/profiles/batch", post(profiles::get_batch));
 
