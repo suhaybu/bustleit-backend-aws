@@ -2,6 +2,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use handlers::profiles;
 use lambda_http::{run, Error};
 use std::env::set_var;
 
@@ -20,7 +21,7 @@ async fn main() -> Result<(), Error> {
 
     let app = Router::new()
         .route("/v1/user/profile/:id", get(todo!()))
-        .route("/v1/user/profiles/batch", post(todo!()))
+        .route("/v1/user/profiles/batch", post(profiles::get_batch))
         .route("/v1/user/profiles/clusters", get(todo!()))
         .route("/v1/user/profiles/all", get(todo!()));
 
