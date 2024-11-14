@@ -163,6 +163,42 @@ impl DynamoDbClient {
         }
     }
 
+    pub async fn get_all_users(&self) -> Result<Vec<UserProfileDB>, DynamoDbError> {
+        let result = self
+            .client
+            .scan()
+            .table_name(&self.table_name)
+            .filter_expression("SK = :profile")
+            .expression_attribute_values(":profile", AttributeValue::S("PROFILE".to_string()))
+            .send()
+            .await
+            .map_err(|e| DynamoDbError::ConnectionError(e.to_string()))?;
+
+        match result.items {
+            Some(items) => {
+                let profiles: Vec<Result<UserProfileDB, DynamoDbError>> = items
+                    .into_iter()
+                    .map(|item| self.convert_to_user_profile(&item))
+                    .collect();
+
+                // Filter out any conversion errors and collect successful conversions
+                let valid_profiles: Vec<UserProfileDB> = profiles
+                    .into_iter()
+                    .filter_map(|result| result.ok())
+                    .collect();
+
+                if valid_profiles.is_empty() {
+                    Err(DynamoDbError::NotFound(
+                        "No user profiles found".to_string(),
+                    ))
+                } else {
+                    Ok(valid_profiles)
+                }
+            }
+            None => Err(DynamoDbError::NotFound("No users found".to_string())),
+        }
+    }
+
     // For AI only
     pub async fn get_user_profiles_ai(
         &self,
