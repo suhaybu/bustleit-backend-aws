@@ -7,7 +7,11 @@ pub struct UserProfilesBatchRequest {
     pub user_ids: Vec<String>,
 }
 
-// POST Response structure for /user/profiles/batch
+// GET Query structure for /user/profiles
+#[derive(Deserialize)]
+pub struct UserProfilesQuery {
+    pub cluster: Option<i32>,
+}
 
 #[derive(Serialize, Deserialize)]
 pub struct UserProfile {
