@@ -67,6 +67,56 @@ impl DynamoDbClient {
         }
     }
 
+    pub async fn get_user_profiles(
+        &self,
+        user_ids: Vec<String>,
+    ) -> Result<Vec<UserProfile>, DynamoDbError> {
+        let keys: Vec<HashMap<String, AttributeValue>> = user_ids
+            .iter()
+            .map(|id| {
+                let mut key = HashMap::new();
+                key.insert(
+                    "PK".to_string(),
+                    AttributeValue::S(Self::create_user_pk(&id.to_string())),
+                );
+                key.insert(
+                    "SK".to_string(),
+                    AttributeValue::S(Self::create_profile_sk()),
+                );
+                key
+            })
+            .collect();
+
+        let keys_and_attributes = aws_sdk_dynamodb::types::KeysAndAttributes::builder()
+            .set_keys(Some(keys))
+            .build()
+            .map_err(|e| DynamoDbError::Other(e.to_string()))?;
+
+        let result = self
+            .client
+            .batch_get_item()
+            .request_items(&self.table_name, keys_and_attributes)
+            .send()
+            .await
+            .map_err(|e| DynamoDbError::ConnectionError(e.to_string()))?;
+
+        match result.responses {
+            Some(items) => {
+                let profiles = items
+                    .get(&self.table_name)
+                    .map(|items| {
+                        items
+                            .iter()
+                            .filter_map(|item| self.convert_to_user_profile(item).ok())
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                Ok(profiles)
+            }
+            None => Ok(Vec::new()),
+        }
+    }
+
     pub async fn get_users_by_cluster(
         &self,
         cluster: i32,
@@ -114,7 +164,7 @@ impl DynamoDbClient {
     }
 
     // For AI only
-    pub async fn get_user_profiles(
+    pub async fn get_user_profiles_ai(
         &self,
         req: &UserProfileRequest,
     ) -> Result<Vec<UserProfile>, DynamoDbError> {
