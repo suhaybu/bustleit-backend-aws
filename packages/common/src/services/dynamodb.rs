@@ -44,7 +44,7 @@ impl DynamoDbClient {
 
     // Read Operations
 
-    pub async fn get_user_profile(&self, user_id: &str) -> Result<UserProfileDB, DynamoDbError> {
+    pub async fn get_user_profile(&self, user_id: String) -> Result<UserProfileDB, DynamoDbError> {
         let pk = format!("USER#{}", user_id);
         let sk = "PROFILE".to_string();
 
@@ -206,7 +206,7 @@ impl DynamoDbClient {
     ) -> Result<Vec<UserProfileDB>, DynamoDbError> {
         let mut profiles = Vec::new();
         for user_id in &req.user_ids {
-            match self.get_user_profile(user_id).await {
+            match self.get_user_profile(user_id.to_string()).await {
                 Ok(profile) => profiles.push(profile),
                 Err(DynamoDbError::NotFound(_)) => continue,
                 Err(e) => {

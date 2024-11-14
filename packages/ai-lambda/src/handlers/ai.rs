@@ -35,7 +35,7 @@ pub async fn get_user_profile(
     info!("Fetching profile for user {}", user_id);
 
     let db = DynamoDbClient::new().await.map_err(handle_error)?;
-    let db_profile = db.get_user_profile(&user_id).await.map_err(handle_error)?;
+    let db_profile = db.get_user_profile(user_id).await.map_err(handle_error)?;
 
     let profile = UserProfile::from(&db_profile);
     Ok(Json(profile))
