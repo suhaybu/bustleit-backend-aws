@@ -21,9 +21,8 @@ async fn main() -> Result<(), Error> {
 
     let app = Router::new()
         .route("/v1/user/profile/:id", get(todo!()))
-        .route("/v1/user/profiles/batch", post(profiles::get_batch))
-        .route("/v1/user/profiles/clusters", get(todo!()))
-        .route("/v1/user/profiles/all", get(todo!()));
+        .route("/v1/user/profiles", get(profiles::get_profiles))
+        .route("/v1/user/profiles/batch", post(profiles::get_batch));
 
     run(app).await
 }
