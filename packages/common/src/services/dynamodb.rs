@@ -30,16 +30,20 @@ impl DynamoDbClient {
         format!("USER#{}", user_id)
     }
 
-    fn create_profile_sk() -> String {
-        "PROFILE".to_string()
-    }
-
     fn create_task_pk(date: &str, task_id: &str) -> String {
         format!("TASK#DATE#{}#{}", date, task_id)
     }
 
     fn create_stats_pk(user_id: &str) -> String {
         format!("STATS#USER#{}", user_id)
+    }
+
+    fn create_profile_sk() -> String {
+        "PROFILE".to_string()
+    }
+
+    fn create_task_sk(date: &str) -> String {
+        format!("TASK#DATE#{}", date)
     }
 
     // Read Operations
@@ -222,6 +226,20 @@ impl DynamoDbClient {
         &self,
         user_id: &str,
         date: &str,
+        date_end: Option<&str>,
+    ) -> Result<Vec<UserTasks>, DynamoDbError> {
+        if let Some(date_end) = date_end {
+            self.get_user_tasks_range(user_id, date, date_end).await
+        } else {
+            let tasks = self.get_user_tasks_single_day(user_id, date).await?;
+            Ok(vec![tasks])
+        }
+    }
+
+    async fn get_user_tasks_single_day(
+        &self,
+        user_id: &str,
+        date: &str,
     ) -> Result<UserTasks, DynamoDbError> {
         let pk = format!("USER#{}", user_id);
         let sk = format!("TASK#DATE#{}", date);
@@ -242,6 +260,45 @@ impl DynamoDbClient {
                 // If no tasks exist for this date, return an empty UserTasks object
                 Ok(UserTasks::new(user_id, date))
             }
+        }
+    }
+
+    async fn get_user_tasks_range(
+        &self,
+        user_id: &str,
+        date_start: &str,
+        date_end: &str,
+    ) -> Result<Vec<UserTasks>, DynamoDbError> {
+        let pk = Self::create_user_pk(user_id);
+        let start_sk = Self::create_task_sk(date_start);
+        let end_sk = Self::create_task_sk(date_end);
+
+        let result = self
+            .client
+            .query()
+            .table_name(&self.table_name)
+            .key_condition_expression("PK = :pk AND SK BETWEEN :start_sk AND :end_sk")
+            .expression_attribute_values(":pk", AttributeValue::S(pk))
+            .expression_attribute_values(":start_sk", AttributeValue::S(start_sk))
+            .expression_attribute_values(":end_sk", AttributeValue::S(end_sk))
+            .send()
+            .await
+            .map_err(|e| DynamoDbError::ConnectionError(e.to_string()))?;
+
+        match result.items {
+            Some(items) => {
+                let tasks: Vec<Result<UserTasks, DynamoDbError>> = items
+                    .into_iter()
+                    .map(|item| self.convert_to_user_tasks(&item))
+                    .collect();
+
+                let valid_tasks: Vec<UserTasks> =
+                    tasks.into_iter().filter_map(|result| result.ok()).collect();
+
+                Ok(valid_tasks)
+            }
+
+            None => Ok(Vec::new()),
         }
     }
 
@@ -300,6 +357,25 @@ impl DynamoDbClient {
         ))
     }
 
+    /// Converts a DynamoDB item into a UserTasks struct
+    ///
+    /// Takes a HashMap of DynamoDB AttributeValues and converts them into a UserTasks object
+    /// by extracting and parsing:
+    /// - date from the "date" field
+    /// - user ID from the "PK" field (strips "USER#" prefix)
+    /// - tasks array from the "tasks" field, where each task contains:
+    ///   - name
+    ///   - category
+    ///   - start time
+    ///   - end time
+    ///   - task ID
+    ///
+    /// Returns Result<UserTasks, DynamoDbError> where:
+    /// - Success: Fully populated UserTasks object
+    /// - Error: DynamoDbError::ParseError if required fields are missing/malformed
+    ///
+    /// Used by get_user_tasks() and similar functions to convert raw DynamoDB
+    /// responses into the UserTasks domain model.
     fn convert_to_user_tasks(
         &self,
         item: &HashMap<String, AttributeValue>,
