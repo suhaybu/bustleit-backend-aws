@@ -218,8 +218,12 @@ impl DynamoDbClient {
         Ok(profiles)
     }
 
-    pub async fn get_user_tasks(&self, uuid: &str, date: &str) -> Result<UserTasks, DynamoDbError> {
-        let pk = format!("USER#{}", uuid);
+    pub async fn get_user_tasks(
+        &self,
+        user_id: &str,
+        date: &str,
+    ) -> Result<UserTasks, DynamoDbError> {
+        let pk = format!("USER#{}", user_id);
         let sk = format!("TASK#DATE#{}", date);
 
         let result = self
@@ -236,7 +240,7 @@ impl DynamoDbClient {
             Some(item) => self.convert_to_user_tasks(&item),
             None => {
                 // If no tasks exist for this date, return an empty UserTasks object
-                Ok(UserTasks::new(uuid, date))
+                Ok(UserTasks::new(user_id, date))
             }
         }
     }
