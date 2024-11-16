@@ -3,7 +3,7 @@ use axum::{extract::Query, http::StatusCode, Json};
 use crate::models::{convert_profiles, UserProfile, UserProfilesBatchRequest, UserProfilesQuery};
 use common::{dynamodb::DynamoDbClient, utils::error::DynamoDbError};
 
-/// POST: /user/profiles/batch
+/// POST: /v1/user/profiles/batch
 /// Retrieves multiple user profiles in a single request
 ///
 /// Request Body:
@@ -61,7 +61,7 @@ pub async fn get_batch(
     Ok(Json(respoonse))
 }
 
-/// GET: /user/profiles[?cluster={cluster_id}]
+/// GET: /v1/user/profiles[?cluster={cluster_id}]
 ///
 /// Returns all user profiles or filters by cluster if cluster query parameter is provided
 ///
@@ -75,8 +75,8 @@ pub async fn get_batch(
 ///   - 500: For server errors
 ///
 /// Examples:
-///   - /user/profiles            ->  Returns all user profiles
-///   - /user/profiles?cluster=3  ->  Returns profiles in cluster 3
+///   - /v1/user/profiles            ->  Returns all user profiles
+///   - /v1/user/profiles?cluster=3  ->  Returns profiles in cluster 3
 pub async fn get_profiles(
     Query(query): Query<UserProfilesQuery>,
 ) -> Result<Json<Vec<UserProfile>>, (StatusCode, Json<serde_json::Value>)> {
