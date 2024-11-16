@@ -57,14 +57,7 @@ pub async fn get_user_schedule(
     Path(user_id): Path<String>,
     Query(query): Query<DateRangeQuery>,
 ) -> Result<Json<ScheduleResponse>, (StatusCode, Json<serde_json::Value>)> {
-    if let Err(err) = query.validate_all() {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({
-                "error": err.to_string()
-            })),
-        ));
-    }
+    query.validate_all()?;
 
     let db = DynamoDbClient::new().await.map_err(|e| {
         (
