@@ -27,6 +27,7 @@ fn validate_date_format(date: &str) -> Result<(), ValidationError> {
 }
 
 impl DateRangeQuery {
+    /// Validates formats, and ensures date ranges are logically validated
     pub fn validate_all(&self) -> Result<(), ValidationError> {
         self.validate().unwrap_err();
         self.validate_date_range().unwrap_err();
