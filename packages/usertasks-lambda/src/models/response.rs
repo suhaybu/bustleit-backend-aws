@@ -4,7 +4,7 @@ use common::models::dynamodb as DB;
 use serde::Serialize;
 
 #[derive(Serialize)]
-pub struct TasksResponse {
+pub struct ScheduleResponse {
     pub user_id: String,
     pub data: HashMap<String, DayTasks>,
 }
@@ -46,7 +46,7 @@ impl From<DB::Task> for Task {
     }
 }
 
-impl TasksResponse {
+impl ScheduleResponse {
     pub fn new(user_id: String) -> Self {
         Self {
             user_id,
