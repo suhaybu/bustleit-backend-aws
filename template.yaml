@@ -19,7 +19,6 @@ Globals:
     Environment:
       Variables:
         DYNAMODB_TABLE: BustleIt-DB
-        AWS_REGION: me-south-1
         TEST_API_TOKEN: !Ref TestApiToken
 
 Resources:
