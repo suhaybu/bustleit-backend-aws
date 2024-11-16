@@ -2,7 +2,7 @@ use chrono::NaiveDate;
 use serde::Deserialize;
 use validator::{Validate, ValidationError};
 
-const DATE_FMT: &str = "%Y-%m-%d"; // YYYY-MM-DD
+pub const DATE_FMT: &str = "%Y-%m-%d"; // YYYY-MM-DD
 const ERR_INVALID_DATE_FORMAT: &str = "Invalid date format. Expected YYYY-MM-DD";
 const ERR_INVALID_DATE_RANGE: &str = "End date must be after start date";
 const ERR_CONFLICTING_PARAMS: &str = "Cannot specify both 'until' and 'range'";
@@ -55,9 +55,9 @@ impl DateRangeQuery {
         Ok(())
     }
 
-    pub fn parse_date(&self) -> Option<NaiveDate> {
-        self.date
-            .as_ref()
-            .and_then(|d| NaiveDate::parse_from_str(d, DATE_FMT).ok())
-    }
+    // pub fn parse_date(&self) -> Option<NaiveDate> {
+    //     self.date
+    //         .as_ref()
+    //         .and_then(|d| NaiveDate::parse_from_str(d, DATE_FMT).ok())
+    // }
 }
