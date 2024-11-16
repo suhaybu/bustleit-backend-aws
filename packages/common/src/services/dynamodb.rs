@@ -12,6 +12,7 @@ pub struct DynamoDbClient {
     table_name: String,
 }
 
+#[allow(dead_code)]
 impl DynamoDbClient {
     pub async fn new() -> Result<Self, DynamoDbError> {
         // Loads env
