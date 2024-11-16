@@ -1,10 +1,12 @@
 use axum::{
+    middleware,
     routing::{get, post},
     Router,
 };
 use lambda_http::{run, Error};
 use std::env::set_var;
 
+use common::services::mw_auth::auth;
 use handlers::{profile, profiles};
 
 mod handlers;
@@ -23,7 +25,8 @@ async fn main() -> Result<(), Error> {
     let app = Router::new()
         .route("/v1/user/profile/:id", get(profile::get_profile))
         .route("/v1/user/profiles", get(profiles::get_profiles))
-        .route("/v1/user/profiles/batch", post(profiles::get_batch));
+        .route("/v1/user/profiles/batch", post(profiles::get_batch))
+        .layer(middleware::from_fn(auth));
 
     run(app).await
 }
