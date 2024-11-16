@@ -1,6 +1,7 @@
 use axum::{
     extract::{Path, Query},
     http::StatusCode,
+    response::IntoResponse,
     Json,
 };
 use chrono::NaiveDate;
@@ -19,6 +20,7 @@ use common::dynamodb::DynamoDbClient;
 /// - `date`: Optional starting date in YYYY-MM-DD format. Defaults to today if not provided
 /// - `until`: Optional end date in YYYY-MM-DD format
 /// - `range`: Optional number of days to fetch (1-31). Cannot be used with 'until'
+/// - `skip_empty`: Optional bool, if true, does not return any empty schedules
 ///
 /// # Examples
 ///
@@ -32,9 +34,9 @@ use common::dynamodb::DynamoDbClient;
 /// GET /v1/user/542172eb-c417-46c0-b9b1-78d1b7630bf5/schedule?date=2024-11-07&until=2024-11-14
 /// ```
 ///
-/// Date range with number of days:
+/// Date range with number of days and skip empty:
 /// ```text
-/// GET /v1/user/542172eb-c417-46c0-b9b1-78d1b7630bf5/schedule?date=2024-11-07&range=7
+/// GET /v1/user/542172eb-c417-46c0-b9b1-78d1b7630bf5/schedule?date=2024-11-07&range=7&skip_empty=true
 /// ```
 ///
 /// Today's schedule (default):
@@ -56,7 +58,18 @@ use common::dynamodb::DynamoDbClient;
 pub async fn get_user_schedule(
     Path(user_id): Path<String>,
     Query(query): Query<DateRangeQuery>,
-) -> Result<Json<ScheduleResponse>, (StatusCode, Json<serde_json::Value>)> {
+) -> impl IntoResponse {
+    match get_user_schedule_helper(user_id, query).await {
+        Ok(Some(response)) => Ok(Json(Some(response))),
+        Ok(None) => Ok(Json(None::<ScheduleResponse>)),
+        Err(e) => Err(e),
+    }
+}
+
+async fn get_user_schedule_helper(
+    user_id: String,
+    query: DateRangeQuery,
+) -> Result<Option<ScheduleResponse>, (StatusCode, Json<serde_json::Value>)> {
     query.validate_all()?;
 
     let db = DynamoDbClient::new().await.map_err(|e| {
@@ -94,7 +107,7 @@ pub async fn get_user_schedule(
         (start_date.clone(), false)
     };
 
-    // 4. Fetch tasks from DB
+    // Fetch tasks from DB
     let tasks = db
         .get_user_tasks(&user_id, &start_date, Some(&end_date))
         .await
@@ -107,10 +120,18 @@ pub async fn get_user_schedule(
             )
         })?;
 
+    if !is_range_query && query.skip_empty {
+        if tasks.is_empty() {
+            return Ok(None);
+        }
+    }
+
     let mut response = ScheduleResponse::new(user_id);
 
     for task in tasks {
-        response.add_day(task.date.clone(), Some(task));
+        if !task.tasks.is_empty() || !query.skip_empty {
+            response.add_day(task.date.clone(), Some(task));
+        }
     }
 
     // Handles calculating the end date if query was given a range
@@ -121,12 +142,16 @@ pub async fn get_user_schedule(
 
         while current <= end {
             let current_date = current.format(DATE_FMT).to_string();
-            if !response.data.contains_key(&current_date) {
+            if !response.data.contains_key(&current_date) && !query.skip_empty {
                 response.add_day(current_date, None);
             }
             current = current.succ_opt().unwrap();
         }
     }
 
-    Ok(Json(response))
+    if query.skip_empty && response.data.is_empty() {
+        return Ok(None);
+    }
+
+    Ok(Some(response))
 }

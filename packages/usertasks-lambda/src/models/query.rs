@@ -20,6 +20,9 @@ pub struct DateRangeQuery {
 
     #[validate(range(min = 1, max = 31, message = "Range must be between 1 and 31 days"))]
     pub range: Option<i32>, // No. of days from date
+
+    #[serde(default)]
+    pub skip_empty: bool,
 }
 
 /// Checks if date compiles with YYYY-MM-DD format
