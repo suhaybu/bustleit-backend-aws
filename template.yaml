@@ -16,96 +16,47 @@ Globals:
         AWS_REGION: me-south-1
 
 Resources:
-  AuthFunction:
+  UserProfileFunction:
     Type: AWS::Serverless::Function
     Metadata:
       BuildMethod: rust-cargolambda
     Properties:
-      CodeUri: ./packages/auth-lambda
+      CodeUri: packages/userprofile-lambda
       Handler: bootstrap
-      Role: !GetAtt AuthFunctionRole.Arn
+      Role: !GetAtt UserProfileFunctionRole.Arn
       Events:
-        Login:
-          Type: Api
-          Properties:
-            Path: /auth/login
-            Method: post
-
-  AiFunction:
-    Type: AWS::Serverless::Function
-    Metadata:
-      BuildMethod: rust-cargolambda
-    Properties:
-      CodeUri: ./packages/ai-lambda
-      Handler: bootstrap
-      Role: !GetAtt AiFunctionRole.Arn
-      Events:
-        # User Profile Routes
-        ListUsers:
-          Type: Api
-          Properties:
-            Path: /v1/users
-            Method: get
         GetUserProfile:
           Type: Api
           Properties:
-            Path: /v1/users/{id}/profile
+            Path: /v1/user/profile/{id}
+            Method: get
+        GetUserProfiles:
+          Type: Api
+          Properties:
+            Path: /v1/user/profiles
             Method: get
         GetUserProfilesBatch:
           Type: Api
           Properties:
-            Path: /v1/users/profiles/batch
+            Path: /v1/user/profiles/batch
             Method: post
-        GetUserClusters:
-          Type: Api
-          Properties:
-            Path: /v1/users/clusters
-            Method: get
-        # Task Routes
-        ListTasks:
-          Type: Api
-          Properties:
-            Path: /v1/tasks
-            Method: get
-        GetUserTasks:
-          Type: Api
-          Properties:
-            Path: /v1/users/{user_id}/tasks
-            Method: get
-        # Schedule Routes
-        GetUserSchedule:
-          Type: Api
-          Properties:
-            Path: /v1/users/{user_id}/schedule
-            Method: get
-        GetUserScheduleMonth:
-          Type: Api
-          Properties:
-            Path: /v1/users/{user_id}/schedule/month/{month}
-            Method: get
 
-  RecommendFunction:
+  UserTasksFunction:
     Type: AWS::Serverless::Function
     Metadata:
       BuildMethod: rust-cargolambda
     Properties:
-      CodeUri: ./packages/recommend-lambda
+      CodeUri: packages/usertasks-lambda
       Handler: bootstrap
-      Role: !GetAtt RecommendFunctionRole.Arn
+      Role: !GetAtt UserTasksFunctionRole.Arn
       Events:
-        Recommend:
+        GetUserSchedule:
           Type: Api
           Properties:
-            Path: /recommend
-            Method: post
-        RecommendTest:
-          Type: Api
-          Properties:
-            Path: /recommend/test
+            Path: /v1/user/{user_id}/schedule
             Method: get
 
-  # IAM Roles
-  AuthFunctionRole:
+  UserProfileFunctionRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -119,21 +70,7 @@ Resources:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
         - !Sub arn:aws:iam::${AWS::AccountId}:policy/BustleItDynamoDBPolicy
 
-  AiFunctionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-        - !Sub arn:aws:iam::${AWS::AccountId}:policy/BustleItDynamoDBPolicy
-
-  RecommendFunctionRole:
+  UserTasksFunctionRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -151,12 +88,9 @@ Outputs:
   ApiEndpoint:
     Description: "API Gateway endpoint URL for Prod stage"
     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
-  AuthFunctionArn:
-    Description: "Auth Lambda Function ARN"
-    Value: !GetAtt AuthFunction.Arn
-  AiFunctionArn:
-    Description: "AI Lambda Function ARN"
-    Value: !GetAtt AiFunction.Arn
-  RecommendFunctionArn:
-    Description: "Recommend Lambda Function ARN"
-    Value: !GetAtt RecommendFunction.Arn
+  UserProfileFunctionArn:
+    Description: "UserProfile Lambda Function ARN"
+    Value: !GetAtt UserProfileFunction.Arn
+  UserTasksFunctionArn:
+    Description: "UserTasks Lambda Function ARN"
+    Value: !GetAtt UserTasksFunction.Arn
