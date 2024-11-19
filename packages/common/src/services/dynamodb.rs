@@ -3,7 +3,7 @@ use aws_sdk_dynamodb::{types::AttributeValue, Client};
 use std::collections::HashMap;
 use std::env;
 
-use crate::error::DynamoDbError;
+use crate::error::{Error, Result};
 use crate::models::dynamodb::{Scores, Task, UserProfileDB, UserTasks};
 
 pub struct DynamoDbClient {
@@ -13,13 +13,14 @@ pub struct DynamoDbClient {
 
 #[allow(dead_code)]
 impl DynamoDbClient {
-    pub async fn new() -> Result<Self, DynamoDbError> {
+    pub async fn new() -> Result<Self> {
         // Loads env
         let config = aws_config::load_defaults(BehaviorVersion::latest()).await;
         let client = Client::new(&config);
 
-        let table_name = env::var("DYNAMODB_TABLE")
-            .map_err(|e| DynamoDbError::Other(format!("Missing DYNAMODB_TABLE env var: {}", e)))?;
+        let table_name = env::var("DYNAMODB_TABLE").map_err(|e| {
+            Error::db_connection_failed(format!("Missing DYNAMODB_TABLE env var: {}", e))
+        })?;
 
         Ok(Self { client, table_name })
     }
@@ -48,7 +49,7 @@ impl DynamoDbClient {
 
     // Read Operations
 
-    pub async fn get_user_profile(&self, user_id: String) -> Result<UserProfileDB, DynamoDbError> {
+    pub async fn get_user_profile(&self, user_id: String) -> Result<UserProfileDB> {
         let pk = format!("USER#{}", user_id);
         let sk = "PROFILE".to_string();
 
@@ -60,21 +61,15 @@ impl DynamoDbClient {
             .key("SK", AttributeValue::S(sk))
             .send()
             .await
-            .map_err(|e| DynamoDbError::ConnectionError(e.to_string()))?;
+            .map_err(|e| Error::db_query_error(e.to_string()))?;
 
         match result.item {
             Some(item) => self.convert_to_user_profile(&item),
-            None => Err(DynamoDbError::NotFound(format!(
-                "User profile not found for user_id: {}",
-                user_id
-            ))),
+            None => Err(Error::not_found("UserProfile", user_id)),
         }
     }
 
-    pub async fn get_user_profiles(
-        &self,
-        user_ids: Vec<String>,
-    ) -> Result<Vec<UserProfileDB>, DynamoDbError> {
+    pub async fn get_user_profiles(&self, user_ids: Vec<String>) -> Result<Vec<UserProfileDB>> {
         let keys: Vec<HashMap<String, AttributeValue>> = user_ids
             .iter()
             .map(|id| {
@@ -94,7 +89,7 @@ impl DynamoDbClient {
         let keys_and_attributes = aws_sdk_dynamodb::types::KeysAndAttributes::builder()
             .set_keys(Some(keys))
             .build()
-            .map_err(|e| DynamoDbError::Other(e.to_string()))?;
+            .map_err(|e| Error::db_query_error(e.to_string()))?;
 
         let result = self
             .client
@@ -102,7 +97,7 @@ impl DynamoDbClient {
             .request_items(&self.table_name, keys_and_attributes)
             .send()
             .await
-            .map_err(|e| DynamoDbError::ConnectionError(e.to_string()))?;
+            .map_err(|e| Error::db_query_error(e.to_string()))?;
 
         match result.responses {
             Some(items) => {
@@ -121,10 +116,7 @@ impl DynamoDbClient {
         }
     }
 
-    pub async fn get_users_by_cluster(
-        &self,
-        cluster: i32,
-    ) -> Result<Vec<UserProfileDB>, DynamoDbError> {
+    pub async fn get_users_by_cluster(&self, cluster: i32) -> Result<Vec<UserProfileDB>> {
         let gsi1pk = format!("CLUSTER#{}", cluster);
 
         let result = self
@@ -136,11 +128,11 @@ impl DynamoDbClient {
             .expression_attribute_values(":cluster", AttributeValue::S(gsi1pk))
             .send()
             .await
-            .map_err(|e| DynamoDbError::ConnectionError(e.to_string()))?;
+            .map_err(|e| Error::db_query_error(e.to_string()))?;
 
         match result.items {
             Some(items) => {
-                let profiles: Vec<Result<UserProfileDB, DynamoDbError>> = items
+                let profiles: Vec<Result<UserProfileDB>> = items
                     .into_iter()
                     .map(|item| self.convert_to_user_profile(&item))
                     .collect();
@@ -152,22 +144,22 @@ impl DynamoDbClient {
                     .collect();
 
                 if valid_profiles.is_empty() {
-                    Err(DynamoDbError::NotFound(format!(
-                        "No user profiles found for cluster {}",
-                        cluster
-                    )))
+                    Err(Error::not_found(
+                        "UserProfiles",
+                        format!("cluster {}", cluster),
+                    ))
                 } else {
                     Ok(valid_profiles)
                 }
             }
-            None => Err(DynamoDbError::NotFound(format!(
-                "No users found in cluster {}",
-                cluster
-            ))),
+            None => Err(Error::not_found(
+                "UserProfiles",
+                format!("cluster {}", cluster),
+            )),
         }
     }
 
-    pub async fn get_all_users(&self) -> Result<Vec<UserProfileDB>, DynamoDbError> {
+    pub async fn get_all_users(&self) -> Result<Vec<UserProfileDB>> {
         let result = self
             .client
             .scan()
@@ -176,11 +168,11 @@ impl DynamoDbClient {
             .expression_attribute_values(":profile", AttributeValue::S("PROFILE".to_string()))
             .send()
             .await
-            .map_err(|e| DynamoDbError::ConnectionError(e.to_string()))?;
+            .map_err(|e| Error::db_query_error(e.to_string()))?;
 
         match result.items {
             Some(items) => {
-                let profiles: Vec<Result<UserProfileDB, DynamoDbError>> = items
+                let profiles: Vec<Result<UserProfileDB>> = items
                     .into_iter()
                     .map(|item| self.convert_to_user_profile(&item))
                     .collect();
@@ -192,14 +184,12 @@ impl DynamoDbClient {
                     .collect();
 
                 if valid_profiles.is_empty() {
-                    Err(DynamoDbError::NotFound(
-                        "No user profiles found".to_string(),
-                    ))
+                    Err(Error::not_found("UserProfiles", "No profiles found"))
                 } else {
                     Ok(valid_profiles)
                 }
             }
-            None => Err(DynamoDbError::NotFound("No users found".to_string())),
+            None => Err(Error::not_found("UserProfiles", "No users found")),
         }
     }
 
@@ -208,7 +198,7 @@ impl DynamoDbClient {
         user_id: &str,
         date: &str,
         date_end: Option<&str>,
-    ) -> Result<Vec<UserTasks>, DynamoDbError> {
+    ) -> Result<Vec<UserTasks>> {
         if let Some(date_end) = date_end {
             self.get_user_tasks_range(user_id, date, date_end).await
         } else {
@@ -217,11 +207,7 @@ impl DynamoDbClient {
         }
     }
 
-    async fn get_user_tasks_single_day(
-        &self,
-        user_id: &str,
-        date: &str,
-    ) -> Result<UserTasks, DynamoDbError> {
+    async fn get_user_tasks_single_day(&self, user_id: &str, date: &str) -> Result<UserTasks> {
         let pk = format!("USER#{}", user_id);
         let sk = format!("TASK#DATE#{}", date);
 
@@ -233,7 +219,7 @@ impl DynamoDbClient {
             .key("SK", AttributeValue::S(sk))
             .send()
             .await
-            .map_err(|e| DynamoDbError::ConnectionError(e.to_string()))?;
+            .map_err(|e| Error::db_query_error(e.to_string()))?;
 
         match result.item {
             Some(item) => self.convert_to_user_tasks(&item),
@@ -249,7 +235,7 @@ impl DynamoDbClient {
         user_id: &str,
         date_start: &str,
         date_end: &str,
-    ) -> Result<Vec<UserTasks>, DynamoDbError> {
+    ) -> Result<Vec<UserTasks>> {
         let pk = Self::create_user_pk(user_id);
         let start_sk = Self::create_task_sk(date_start);
         let end_sk = Self::create_task_sk(date_end);
@@ -264,11 +250,11 @@ impl DynamoDbClient {
             .expression_attribute_values(":end_sk", AttributeValue::S(end_sk))
             .send()
             .await
-            .map_err(|e| DynamoDbError::ConnectionError(e.to_string()))?;
+            .map_err(|e| Error::db_query_error(e.to_string()))?;
 
         match result.items {
             Some(items) => {
-                let tasks: Vec<Result<UserTasks, DynamoDbError>> = items
+                let tasks: Vec<Result<UserTasks>> = items
                     .into_iter()
                     .map(|item| self.convert_to_user_tasks(&item))
                     .collect();
@@ -287,7 +273,7 @@ impl DynamoDbClient {
     fn convert_to_user_profile(
         &self,
         item: &HashMap<String, AttributeValue>,
-    ) -> Result<UserProfileDB, DynamoDbError> {
+    ) -> Result<UserProfileDB> {
         let preferences = if let Some(AttributeValue::L(prefs)) = item.get("preferences") {
             prefs
                 .iter()
@@ -317,7 +303,7 @@ impl DynamoDbClient {
                 intuitive: self.extract_number(scores_map.get("intuitive"))?,
             }
         } else {
-            return Err(DynamoDbError::ParseError("Missing scores map".to_string()));
+            return Err(Error::db_parse_error("Missing scores map"));
         };
 
         let cluster = self
@@ -351,27 +337,24 @@ impl DynamoDbClient {
     ///   - end time
     ///   - task ID
     ///
-    /// Returns Result<UserTasks, DynamoDbError> where:
+    /// Returns Result<UserTasks, Error> where:
     /// - Success: Fully populated UserTasks object
     /// - Error: DynamoDbError::ParseError if required fields are missing/malformed
     ///
     /// Used by get_user_tasks() and similar functions to convert raw DynamoDB
     /// responses into the UserTasks domain model.
-    fn convert_to_user_tasks(
-        &self,
-        item: &HashMap<String, AttributeValue>,
-    ) -> Result<UserTasks, DynamoDbError> {
+    fn convert_to_user_tasks(&self, item: &HashMap<String, AttributeValue>) -> Result<UserTasks> {
         let date = item
             .get("date")
             .and_then(|v| v.as_s().ok())
-            .ok_or_else(|| DynamoDbError::ParseError("Missing date".to_string()))?
+            .ok_or_else(|| Error::db_parse_error("Missing date"))?
             .clone();
 
         let uuid = item
             .get("PK")
             .and_then(|v| v.as_s().ok())
             .map(|s| s.trim_start_matches("USER#").to_string())
-            .ok_or_else(|| DynamoDbError::ParseError("Missing PK".to_string()))?;
+            .ok_or_else(|| Error::db_parse_error("Missing PK"))?;
 
         let mut user_tasks = UserTasks::new(&uuid, &date);
 
@@ -416,7 +399,7 @@ impl DynamoDbClient {
     fn convert_from_user_tasks(
         &self,
         user_tasks: &UserTasks,
-    ) -> Result<HashMap<String, AttributeValue>, DynamoDbError> {
+    ) -> Result<HashMap<String, AttributeValue>> {
         let mut item = HashMap::new();
 
         // Add keys
@@ -489,11 +472,11 @@ impl DynamoDbClient {
         Ok(item)
     }
 
-    fn extract_number(&self, attr: Option<&AttributeValue>) -> Result<f32, DynamoDbError> {
+    fn extract_number(&self, attr: Option<&AttributeValue>) -> Result<f32> {
         match attr {
             Some(AttributeValue::N(num_str)) => num_str
                 .parse::<f32>()
-                .map_err(|e| DynamoDbError::ParseError(format!("Failed to parse number: {}", e))),
+                .map_err(|e| Error::db_parse_error(format!("Failed to parse number: {}", e))),
             _ => Ok(0.0),
         }
     }
