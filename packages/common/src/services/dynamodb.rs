@@ -5,7 +5,6 @@ use std::env;
 
 use crate::error::DynamoDbError;
 use crate::models::dynamodb::{Scores, Task, UserProfileDB, UserTasks};
-use crate::models::userdata::UserProfileRequest;
 
 pub struct DynamoDbClient {
     client: Client,
@@ -202,25 +201,6 @@ impl DynamoDbClient {
             }
             None => Err(DynamoDbError::NotFound("No users found".to_string())),
         }
-    }
-
-    // For AI only
-    pub async fn get_user_profiles_ai(
-        &self,
-        req: &UserProfileRequest,
-    ) -> Result<Vec<UserProfileDB>, DynamoDbError> {
-        let mut profiles = Vec::new();
-        for user_id in &req.user_ids {
-            match self.get_user_profile(user_id.to_string()).await {
-                Ok(profile) => profiles.push(profile),
-                Err(DynamoDbError::NotFound(_)) => continue,
-                Err(e) => {
-                    tracing::error!("DynamoDB error for user {}: {}", user_id, e);
-                    return Err(e);
-                }
-            }
-        }
-        Ok(profiles)
     }
 
     pub async fn get_user_tasks(
