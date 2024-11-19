@@ -1,3 +1,3 @@
-mod tasks;
+mod schedule;
 
-pub use tasks::get_user_schedule;
+pub use schedule::get_user_schedule;
