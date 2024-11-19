@@ -4,6 +4,12 @@ use common::models::dynamodb as DB;
 use serde::Serialize;
 
 #[derive(Serialize)]
+pub struct TasksResponse {
+    pub user_id: String,
+    pub all_tasks: Vec<Task>,
+}
+
+#[derive(Serialize)]
 pub struct ScheduleResponse {
     pub user_id: String,
     pub data: HashMap<String, DayTasks>,
