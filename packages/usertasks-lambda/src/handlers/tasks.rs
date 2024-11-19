@@ -120,10 +120,8 @@ async fn get_user_schedule_helper(
             )
         })?;
 
-    if !is_range_query && query.skip_empty {
-        if tasks.is_empty() {
-            return Ok(None);
-        }
+    if !is_range_query && query.skip_empty && tasks.is_empty() {
+        return Ok(None);
     }
 
     let mut response = ScheduleResponse::new(user_id);
