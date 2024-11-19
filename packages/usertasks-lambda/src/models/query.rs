@@ -1,14 +1,10 @@
-use axum::{http::StatusCode, Json};
 use chrono::NaiveDate;
 use serde::Deserialize;
 use validator::{Validate, ValidationError};
 
-pub const DATE_FMT: &str = "%Y-%m-%d"; // YYYY-MM-DD
-const ERR_INVALID_DATE_FORMAT: &str = "Invalid date format. Expected YYYY-MM-DD";
-const ERR_INVALID_DATE_RANGE: &str = "End date must be after start date";
-const ERR_CONFLICTING_PARAMS: &str = "Cannot specify both 'until' and 'range'";
+use common::error::{Error, Result};
 
-pub type ApiError = (StatusCode, Json<serde_json::Value>);
+pub const DATE_FMT: &str = "%Y-%m-%d"; // YYYY-MM-DD
 
 #[derive(Deserialize, Validate)]
 pub struct DateRangeQuery {
@@ -26,68 +22,38 @@ pub struct DateRangeQuery {
 }
 
 /// Checks if date compiles with YYYY-MM-DD format
-fn validate_date_format(date: &str) -> Result<(), ValidationError> {
+fn validate_date_format(date: &str) -> std::result::Result<(), ValidationError> {
     NaiveDate::parse_from_str(date, DATE_FMT)
-        .map_err(|_| ValidationError::new(ERR_INVALID_DATE_FORMAT))?;
+        .map_err(|_| ValidationError::new("Invalid date format. Expected YYYY-MM-DD"))?;
     Ok(())
 }
 
 impl DateRangeQuery {
-    pub fn validate_all(&self) -> Result<(), ApiError> {
+    pub fn validate_all(&self) -> Result<()> {
         if let Err(validation_errors) = self.validate() {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(serde_json::json!({
-                    "error": "Validation failed",
-                    "details": validation_errors.to_string()
-                })),
-            ));
+            return Err(Error::validation(validation_errors.to_string()));
         }
-
         self.validate_date_range()?;
-
         Ok(())
     }
 
     /// Ensures the date ranges are valid
-    fn validate_date_range(&self) -> Result<(), ApiError> {
+    fn validate_date_range(&self) -> Result<()> {
         // Prevents defining both 'until' & 'range' in the same request
         if self.until.is_some() && self.range.is_some() {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(serde_json::json!({
-                    "error": ERR_CONFLICTING_PARAMS
-                })),
-            ));
+            return Err(Error::validation("Cannot specify both 'until' and 'range'"));
         }
 
         // Ensures until date is later than start date
         if let (Some(date), Some(until)) = (&self.date, &self.until) {
-            let start_date = NaiveDate::parse_from_str(date, DATE_FMT).map_err(|_| {
-                (
-                    StatusCode::BAD_REQUEST,
-                    Json(serde_json::json!({
-                        "error": ERR_INVALID_DATE_FORMAT
-                    })),
-                )
-            })?;
+            let start_date = NaiveDate::parse_from_str(date, DATE_FMT)
+                .map_err(|_| Error::validation("Invalid start date format"))?;
 
-            let end_date = NaiveDate::parse_from_str(until, DATE_FMT).map_err(|_| {
-                (
-                    StatusCode::BAD_REQUEST,
-                    Json(serde_json::json!({
-                        "error": ERR_INVALID_DATE_FORMAT
-                    })),
-                )
-            })?;
+            let end_date = NaiveDate::parse_from_str(until, DATE_FMT)
+                .map_err(|_| Error::validation("Invalid end date format"))?;
 
             if end_date < start_date {
-                return Err((
-                    StatusCode::BAD_REQUEST,
-                    Json(serde_json::json!({
-                        "error": ERR_INVALID_DATE_RANGE
-                    })),
-                ));
+                return Err(Error::validation("End date must be after start date"));
             }
         }
 
