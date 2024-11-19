@@ -1,5 +1,7 @@
 use axum::{extract::Path, http::StatusCode, Json};
-use common::{dynamodb::DynamoDbClient, error::DynamoDbError, models::userdata::UserProfile};
+
+use crate::models::UserProfile;
+use common::{dynamodb::DynamoDbClient, error::DynamoDbError};
 
 /// GET: /v1/user/profile/:id
 ///
