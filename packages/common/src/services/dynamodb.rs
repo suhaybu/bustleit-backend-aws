@@ -193,6 +193,67 @@ impl DynamoDbClient {
         }
     }
 
+    pub async fn get_all_users_tasks(&self) -> Result<Vec<UserTasks>> {
+        let result = self
+            .client
+            .scan()
+            .table_name(&self.table_name)
+            .filter_expression("begins_with(SK, :task_prefix)")
+            .expression_attribute_values(
+                ":task_prefix",
+                AttributeValue::S("TASK#DATE#".to_string()),
+            )
+            .send()
+            .await
+            .map_err(|e| Error::db_query_error(e.to_string()))?;
+
+        match result.items {
+            Some(items) => {
+                let tasks: Vec<Result<UserTasks>> = items
+                    .into_iter()
+                    .map(|item| self.convert_to_user_tasks(&item))
+                    .collect();
+
+                // Filter out any conversion errors
+                Ok(tasks.into_iter().filter_map(|r| r.ok()).collect())
+            }
+            None => Ok(Vec::new()),
+        }
+    }
+
+    pub async fn get_users_tasks(&self, user_ids: &[String]) -> Result<Vec<UserTasks>> {
+        let mut all_tasks = Vec::new();
+
+        for user_id in user_ids {
+            let pk = format!("USER#{}", user_id);
+
+            let result = self
+                .client
+                .query()
+                .table_name(&self.table_name)
+                .key_condition_expression("PK = :pk AND begins_with(SK, :task_prefix)")
+                .expression_attribute_values(":pk", AttributeValue::S(pk))
+                .expression_attribute_values(
+                    ":task_prefix",
+                    AttributeValue::S("TASK#DATE#".to_string()),
+                )
+                .send()
+                .await
+                .map_err(|e| Error::db_query_error(e.to_string()))?;
+
+            if let Some(items) = result.items {
+                let tasks: Vec<Result<UserTasks>> = items
+                    .into_iter()
+                    .map(|item| self.convert_to_user_tasks(&item))
+                    .collect();
+
+                all_tasks.extend(tasks.into_iter().filter_map(|r| r.ok()));
+            }
+        }
+
+        Ok(all_tasks)
+    }
+
     pub async fn get_user_schedule(
         &self,
         user_id: &str,
