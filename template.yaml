@@ -56,6 +56,16 @@ Resources:
       Handler: bootstrap
       Role: !GetAtt UserTasksFunctionRole.Arn
       Events:
+        GetAllTasks:
+          Type: Api
+          Properties:
+            Path: /v1/tasks
+            Method: get
+        GetTasksBatch:
+          Type: Api
+          Properties:
+            Path: /v1/tasks/batch
+            Method: post
         GetUserSchedule:
           Type: Api
           Properties:
