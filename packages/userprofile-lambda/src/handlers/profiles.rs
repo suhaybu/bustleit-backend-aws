@@ -1,7 +1,8 @@
 use axum::{extract::Query, http::StatusCode, Json};
 
 use crate::models::{convert_profiles, UserProfile, UserProfilesBatchRequest, UserProfilesQuery};
-use common::{dynamodb::DynamoDbClient, error::DynamoDbError};
+use common::dynamodb::DynamoDbClient;
+use common::error::{Error, Result};
 
 /// POST: /v1/user/profiles/batch
 /// Retrieves multiple user profiles in a single request
@@ -19,43 +20,13 @@ use common::{dynamodb::DynamoDbClient, error::DynamoDbError};
 /// - 500: For server errors
 pub async fn get_batch(
     Json(payload): Json<UserProfilesBatchRequest>,
-) -> Result<Json<Vec<UserProfile>>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Json<Vec<UserProfile>>> {
     if payload.user_ids.is_empty() {
-        return Err((
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({
-                "error": "At least one user ID must be provided"
-            })),
-        ));
+        return Err(Error::validation("At least one user ID must be provided"));
     }
 
-    let db = DynamoDbClient::new().await.map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({
-                "error": format!("Database connection error: {}", e)
-            })),
-        )
-    })?;
-
-    let profiles_db = db
-        .get_user_profiles(payload.user_ids)
-        .await
-        .map_err(|e| match e {
-            DynamoDbError::NotFound(msg) => (
-                StatusCode::NOT_FOUND,
-                Json(serde_json::json!({
-                    "error": msg
-                })),
-            ),
-            _ => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({
-                    "error": format!("Failed to fetch profiles: {}", e)
-                })),
-            ),
-        })?;
-
+    let db = DynamoDbClient::new().await?;
+    let profiles_db = db.get_user_profiles(payload.user_ids).await?;
     let respoonse = convert_profiles(profiles_db);
 
     Ok(Json(respoonse))
@@ -79,44 +50,21 @@ pub async fn get_batch(
 ///   - /v1/user/profiles?cluster=3  ->  Returns profiles in cluster 3
 pub async fn get_profiles(
     Query(query): Query<UserProfilesQuery>,
-) -> Result<Json<Vec<UserProfile>>, (StatusCode, Json<serde_json::Value>)> {
-    let db = DynamoDbClient::new().await.map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({
-                "error": format!("Database connection error: {}", e)
-            })),
-        )
-    })?;
+) -> Result<Json<Vec<UserProfile>>> {
+    let db = DynamoDbClient::new().await?;
 
     let profiles_db = match query.cluster {
         Some(cluster) => {
             if cluster < 0 {
-                return Err((
-                    StatusCode::BAD_REQUEST,
-                    Json(serde_json::json!({
-                        "error": "Cluster ID must be a non-negative integer"
-                    })),
+                return Err(Error::field_validation(
+                    "cluster",
+                    "Cluster ID must be a non-negative integer",
                 ));
             }
             db.get_users_by_cluster(cluster).await
         }
         None => db.get_all_users().await,
-    }
-    .map_err(|e| match e {
-        DynamoDbError::NotFound(msg) => (
-            StatusCode::NOT_FOUND,
-            Json(serde_json::json!({
-                "error": msg
-            })),
-        ),
-        _ => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({
-                "error": format!("Failed to fetch profiles: {}", e)
-            })),
-        ),
-    })?;
+    }?;
 
     let profiles = convert_profiles(profiles_db);
 
