@@ -1,9 +1,5 @@
 [workspace]
-members = [
-    "packages/common",
-    "packages/userprofile-lambda",
-    "packages/usertasks-lambda",
-]
+members = ["src/common", "src/userprofile-lambda", "src/usertasks-lambda"]
 
 [workspace.dependencies]
 axum = "0.7"

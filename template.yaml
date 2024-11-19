@@ -27,7 +27,7 @@ Resources:
     Metadata:
       BuildMethod: rust-cargolambda
     Properties:
-      CodeUri: packages/userprofile-lambda
+      CodeUri: src/userprofile-lambda
       Handler: bootstrap
       Role: !GetAtt UserProfileFunctionRole.Arn
       Events:
@@ -52,7 +52,7 @@ Resources:
     Metadata:
       BuildMethod: rust-cargolambda
     Properties:
-      CodeUri: packages/usertasks-lambda
+      CodeUri: src/usertasks-lambda
       Handler: bootstrap
       Role: !GetAtt UserTasksFunctionRole.Arn
       Events:
