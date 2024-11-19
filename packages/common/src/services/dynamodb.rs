@@ -193,21 +193,21 @@ impl DynamoDbClient {
         }
     }
 
-    pub async fn get_user_tasks(
+    pub async fn get_user_schedule(
         &self,
         user_id: &str,
         date: &str,
         date_end: Option<&str>,
     ) -> Result<Vec<UserTasks>> {
         if let Some(date_end) = date_end {
-            self.get_user_tasks_range(user_id, date, date_end).await
+            self.get_user_schedule_range(user_id, date, date_end).await
         } else {
-            let tasks = self.get_user_tasks_single_day(user_id, date).await?;
+            let tasks = self.get_user_schedule_single_day(user_id, date).await?;
             Ok(vec![tasks])
         }
     }
 
-    async fn get_user_tasks_single_day(&self, user_id: &str, date: &str) -> Result<UserTasks> {
+    async fn get_user_schedule_single_day(&self, user_id: &str, date: &str) -> Result<UserTasks> {
         let pk = format!("USER#{}", user_id);
         let sk = format!("TASK#DATE#{}", date);
 
@@ -230,7 +230,7 @@ impl DynamoDbClient {
         }
     }
 
-    async fn get_user_tasks_range(
+    async fn get_user_schedule_range(
         &self,
         user_id: &str,
         date_start: &str,

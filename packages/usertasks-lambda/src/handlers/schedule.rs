@@ -109,7 +109,7 @@ async fn get_user_schedule_helper(
 
     // Fetch tasks from DB
     let tasks = db
-        .get_user_tasks(&user_id, &start_date, Some(&end_date))
+        .get_user_schedule(&user_id, &start_date, Some(&end_date))
         .await
         .map_err(|e| {
             (
