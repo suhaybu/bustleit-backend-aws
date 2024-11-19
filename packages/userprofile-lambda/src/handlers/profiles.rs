@@ -1,4 +1,4 @@
-use axum::{extract::Query, http::StatusCode, Json};
+use axum::{extract::Query, Json};
 
 use crate::models::{convert_profiles, UserProfile, UserProfilesBatchRequest, UserProfilesQuery};
 use common::dynamodb::DynamoDbClient;
