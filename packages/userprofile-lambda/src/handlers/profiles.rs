@@ -1,7 +1,7 @@
 use axum::{extract::Query, http::StatusCode, Json};
 
 use crate::models::{convert_profiles, UserProfile, UserProfilesBatchRequest, UserProfilesQuery};
-use common::{dynamodb::DynamoDbClient, utils::error::DynamoDbError};
+use common::{dynamodb::DynamoDbClient, error::DynamoDbError};
 
 /// POST: /v1/user/profiles/batch
 /// Retrieves multiple user profiles in a single request

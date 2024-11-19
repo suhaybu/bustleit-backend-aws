@@ -3,9 +3,9 @@ use aws_sdk_dynamodb::{types::AttributeValue, Client};
 use std::collections::HashMap;
 use std::env;
 
+use crate::error::DynamoDbError;
 use crate::models::dynamodb::{Scores, Task, UserProfileDB, UserTasks};
 use crate::models::userdata::UserProfileRequest;
-use crate::utils::error::DynamoDbError;
 
 pub struct DynamoDbClient {
     client: Client,
