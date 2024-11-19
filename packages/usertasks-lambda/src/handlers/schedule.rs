@@ -1,13 +1,12 @@
 use axum::{
     extract::{Path, Query},
-    http::StatusCode,
-    response::IntoResponse,
     Json,
 };
 use chrono::NaiveDate;
 
 use crate::models::{DateRangeQuery, ScheduleResponse, DATE_FMT};
 use common::dynamodb::DynamoDbClient;
+use common::error::{Error, Result};
 
 /// Retrieves a user's schedule for a specified time period
 ///
@@ -58,28 +57,9 @@ use common::dynamodb::DynamoDbClient;
 pub async fn get_user_schedule(
     Path(user_id): Path<String>,
     Query(query): Query<DateRangeQuery>,
-) -> impl IntoResponse {
-    match get_user_schedule_helper(user_id, query).await {
-        Ok(Some(response)) => Ok(Json(Some(response))),
-        Ok(None) => Ok(Json(None::<ScheduleResponse>)),
-        Err(e) => Err(e),
-    }
-}
-
-async fn get_user_schedule_helper(
-    user_id: String,
-    query: DateRangeQuery,
-) -> Result<Option<ScheduleResponse>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Json<Option<ScheduleResponse>>> {
     query.validate_all()?;
-
-    let db = DynamoDbClient::new().await.map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({
-                "error": format!("Database connection error: {}", e)
-            })),
-        )
-    })?;
+    let db = DynamoDbClient::new().await?;
 
     // If no start date is supplied, will take today's date
     let start_date = query
@@ -92,14 +72,7 @@ async fn get_user_schedule_helper(
         let end = NaiveDate::parse_from_str(&start_date, DATE_FMT)
             .unwrap() // Safe due to validation
             .checked_add_days(chrono::Days::new((range - 1) as u64))
-            .ok_or_else(|| {
-                (
-                    StatusCode::BAD_REQUEST,
-                    Json(serde_json::json!({
-                        "error": "Invalid date range calculation"
-                    })),
-                )
-            })?
+            .ok_or_else(|| Error::validation("Invalid date range calculation"))?
             .format(DATE_FMT)
             .to_string();
         (end, true)
@@ -110,18 +83,10 @@ async fn get_user_schedule_helper(
     // Fetch tasks from DB
     let tasks = db
         .get_user_schedule(&user_id, &start_date, Some(&end_date))
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({
-                    "error": format!("Failed to fetch tasks: {}", e)
-                })),
-            )
-        })?;
+        .await?;
 
     if !is_range_query && query.skip_empty && tasks.is_empty() {
-        return Ok(None);
+        return Ok(Json(None));
     }
 
     let mut response = ScheduleResponse::new(user_id);
@@ -148,8 +113,8 @@ async fn get_user_schedule_helper(
     }
 
     if query.skip_empty && response.data.is_empty() {
-        return Ok(None);
+        return Ok(Json(None));
     }
 
-    Ok(Some(response))
+    Ok(Json(Some(response)))
 }
