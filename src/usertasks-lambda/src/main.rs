@@ -9,7 +9,7 @@ use std::env::set_var;
 use common::services::mw_auth::auth;
 use handlers::{
     schedule::get_user_schedule,
-    tasks::{delete_task, get_all_tasks, get_tasks_batch},
+    tasks::{create_task, delete_task, get_all_tasks, get_tasks_batch},
 };
 
 mod db;
@@ -30,6 +30,7 @@ async fn main() -> Result<(), Error> {
         .route("/v1/user/:user_id/schedule", get(get_user_schedule))
         .route("/v1/tasks", get(get_all_tasks))
         .route("/v1/tasks/batch", post(get_tasks_batch))
+        .route("/v1/user/:user_id/tasks", post(create_task))
         .route("/v1/user/:user_id/tasks/:task_id", delete(delete_task))
         .layer(middleware::from_fn(auth));
     // .route("/v1/users/:user_id/schedule/month/:month", get(todo!()));

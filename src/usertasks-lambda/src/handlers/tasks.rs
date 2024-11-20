@@ -1,11 +1,13 @@
 use axum::{extract::Path, Json};
+use uuid::Uuid;
 
 use crate::db::UserTasksDb;
 use crate::models::{
-    request::TasksRequest,
+    request::{CreateTaskRequest, TasksRequest},
     response::{Task, TasksResponse},
 };
 use common::error::{Error, Result};
+use common::models::dynamodb as DB;
 
 // GET /v1/tasks - Get all tasks
 pub async fn get_all_tasks() -> Result<Json<Vec<TasksResponse>>> {
@@ -67,3 +69,26 @@ pub async fn delete_task(Path((user_id, task_id)): Path<(String, String)>) -> Re
     db.delete_task(&user_id, &task_id).await?;
     Ok(())
 }
+
+// POST /v1/user/:user_id/tasks
+pub async fn create_task(
+    Path(user_id): Path<String>,
+    Json(payload): Json<CreateTaskRequest>,
+) -> Result<Json<DB::Task>> {
+    let db = UserTasksDb::new().await?;
+    let task_id = Uuid::new_v4().to_string();
+
+    let task = DB::Task::new(
+        payload.name,
+        payload.category,
+        payload.start_time,
+        payload.end_time,
+        task_id,
+    );
+
+    db.add_task(&user_id, &payload.date, task.clone()).await?;
+
+    Ok(Json(task))
+}
+
+// PATCH /v1/user/:user_id/tasks/:task_id
