@@ -4,8 +4,8 @@ use axum::{
 };
 use chrono::NaiveDate;
 
+use crate::db::UserTasksDb;
 use crate::models::{DateRangeQuery, ScheduleResponse, DATE_FMT};
-use common::dynamodb::DynamoDbClient;
 use common::error::{Error, Result};
 
 /// Retrieves a user's schedule for a specified time period
@@ -59,7 +59,7 @@ pub async fn get_user_schedule(
     Query(query): Query<DateRangeQuery>,
 ) -> Result<Json<Option<ScheduleResponse>>> {
     query.validate_all()?;
-    let db = DynamoDbClient::new().await?;
+    let db = UserTasksDb::new().await?;
 
     // If no start date is supplied, will take today's date
     let start_date = query

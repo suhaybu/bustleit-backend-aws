@@ -1,7 +1,7 @@
 use axum::{extract::Query, Json};
 
+use crate::db::UserProfileDb;
 use crate::models::{convert_profiles, UserProfile, UserProfilesBatchRequest, UserProfilesQuery};
-use common::dynamodb::DynamoDbClient;
 use common::error::{Error, Result};
 
 /// POST: /v1/user/profiles/batch
@@ -25,7 +25,7 @@ pub async fn get_batch(
         return Err(Error::validation("At least one user ID must be provided"));
     }
 
-    let db = DynamoDbClient::new().await?;
+    let db = UserProfileDb::new().await?;
     let profiles_db = db.get_user_profiles(payload.user_ids).await?;
     let respoonse = convert_profiles(profiles_db);
 
@@ -51,7 +51,7 @@ pub async fn get_batch(
 pub async fn get_profiles(
     Query(query): Query<UserProfilesQuery>,
 ) -> Result<Json<Vec<UserProfile>>> {
-    let db = DynamoDbClient::new().await?;
+    let db = UserProfileDb::new().await?;
 
     let profiles_db = match query.cluster {
         Some(cluster) => {

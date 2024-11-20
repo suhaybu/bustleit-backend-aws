@@ -1,14 +1,12 @@
 use axum::Json;
 
+use crate::db::UserTasksDb;
 use crate::models::{Task, TasksRequest, TasksResponse};
-use common::{
-    dynamodb::DynamoDbClient,
-    error::{Error, Result},
-};
+use common::error::{Error, Result};
 
 // GET /v1/tasks - Get all tasks
 pub async fn get_all_tasks() -> Result<Json<Vec<TasksResponse>>> {
-    let db = DynamoDbClient::new().await?;
+    let db = UserTasksDb::new().await?;
     let all_tasks = db.get_all_users_tasks().await?;
 
     let response = all_tasks
@@ -38,7 +36,7 @@ pub async fn get_tasks_batch(
         return Err(Error::validation("At least one user ID must be provided"));
     }
 
-    let db = DynamoDbClient::new().await?;
+    let db = UserTasksDb::new().await?;
     let user_tasks = db.get_users_tasks(&payload.user_ids).await?;
 
     let response = user_tasks
