@@ -257,7 +257,7 @@ impl UserTasksDb {
                .key("PK", AttributeValue::S(format!("USER#{}", user_id)))
                .key("SK", AttributeValue::S(format!("TASK#DATE#{}", date)))
                .update_expression("SET tasks = list_append(if_not_exists(tasks, :empty_list), :task), totalTasks = if_not_exists(totalTasks, :zero) + :one")
-               .expression_attribute_values(":task", AttributeValue::L(vec![self.task_to_av(task)?]))
+               .expression_attribute_values(":task", AttributeValue::L(vec![self.convert_task_to_av(task)?]))
                .expression_attribute_values(":empty_list", AttributeValue::L(vec![]))
                .expression_attribute_values(":zero", AttributeValue::N("0".to_string()))
                .expression_attribute_values(":one", AttributeValue::N("1".to_string()));
@@ -270,7 +270,7 @@ impl UserTasksDb {
         Ok(())
     }
 
-    fn task_to_av(&self, task: Task) -> Result<AttributeValue> {
+    fn convert_task_to_av(&self, task: Task) -> Result<AttributeValue> {
         let mut task_map = HashMap::new();
         task_map.insert("name".to_string(), AttributeValue::S(task.name));
         task_map.insert("category".to_string(), AttributeValue::S(task.category));
