@@ -5,7 +5,10 @@ use axum::{
 use chrono::NaiveDate;
 
 use crate::db::UserTasksDb;
-use crate::models::{DateRangeQuery, ScheduleResponse, DATE_FMT};
+use crate::models::{
+    query::{DateRangeQuery, DATE_FMT},
+    response::ScheduleResponse,
+};
 use common::error::{Error, Result};
 
 /// Retrieves a user's schedule for a specified time period

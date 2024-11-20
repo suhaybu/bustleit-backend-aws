@@ -1,7 +1,10 @@
 use axum::{extract::Path, Json};
 
 use crate::db::UserTasksDb;
-use crate::models::{Task, TasksRequest, TasksResponse};
+use crate::models::{
+    request::TasksRequest,
+    response::{Task, TasksResponse},
+};
 use common::error::{Error, Result};
 
 // GET /v1/tasks - Get all tasks
