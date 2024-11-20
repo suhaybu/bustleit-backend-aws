@@ -9,6 +9,7 @@ use std::env::set_var;
 use common::services::mw_auth::auth;
 use handlers::{profile, profiles};
 
+mod db;
 mod handlers;
 mod models;
 

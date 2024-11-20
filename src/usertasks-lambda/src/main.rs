@@ -9,6 +9,7 @@ use std::env::set_var;
 use common::services::mw_auth::auth;
 use handlers::{get_all_tasks, get_tasks_batch, get_user_schedule};
 
+mod db;
 mod handlers;
 mod models;
 
