@@ -72,6 +72,11 @@ Resources:
           Properties:
             Path: /v1/user/{user_id}/schedule
             Method: get
+        CreateTask:
+          Type: Api
+          Properties:
+            Path: /v1/user/{user_id}/tasks
+            Method: post
 
   UserProfileFunctionRole:
     Type: AWS::IAM::Role
