@@ -18,32 +18,53 @@ impl UserTasksDb {
     }
 
     pub async fn get_all_users_tasks(&self) -> Result<Vec<UserTasks>> {
-        let result = self
-            .db
-            .client
-            .scan()
-            .table_name(&self.db.table_name)
-            .filter_expression("begins_with(SK, :task_prefix)")
-            .expression_attribute_values(
-                ":task_prefix",
-                AttributeValue::S("TASK#DATE#".to_string()),
-            )
-            .send()
-            .await
-            .map_err(|e| Error::db_query_error(e.to_string()))?;
+        let mut all_tasks = Vec::new();
+        let mut exclusive_start_key: Option<HashMap<String, AttributeValue>> = None;
 
-        match result.items {
-            Some(items) => {
+        loop {
+            // tracing::debug!("Scanning for user tasks");
+
+            let mut scan = self
+                .db
+                .client
+                .scan()
+                .table_name(&self.db.table_name)
+                .filter_expression("begins_with(SK, :task_prefix)")
+                .expression_attribute_values(
+                    ":task_prefix",
+                    AttributeValue::S("TASK#DATE#".to_string()),
+                );
+
+            if let Some(last_key) = &exclusive_start_key {
+                for (k, v) in last_key.iter() {
+                    scan = scan.exclusive_start_key(k.to_string(), v.clone());
+                }
+            }
+
+            let result = scan
+                .send()
+                .await
+                .map_err(|e| Error::db_query_error(e.to_string()))?;
+
+            if let Some(items) = result.items {
+                // tracing::debug!(batch_size = items.len(), "Retrieved batch of tasks");
+
                 let tasks: Vec<Result<UserTasks>> = items
                     .into_iter()
                     .map(|item| self.convert_to_user_tasks(&item))
                     .collect();
 
-                // Filter out any conversion errors
-                Ok(tasks.into_iter().filter_map(|r| r.ok()).collect())
+                all_tasks.extend(tasks.into_iter().filter_map(|r| r.ok()));
             }
-            None => Ok(Vec::new()),
+
+            exclusive_start_key = result.last_evaluated_key;
+
+            if exclusive_start_key.is_none() {
+                break;
+            }
         }
+        // tracing::debug!(total_tasks = all_tasks.len(), "Retrieved all tasks");
+        Ok(all_tasks)
     }
 
     pub async fn get_users_tasks(&self, user_ids: &[String]) -> Result<Vec<UserTasks>> {

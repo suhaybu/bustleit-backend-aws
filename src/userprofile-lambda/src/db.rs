@@ -1,4 +1,5 @@
 use aws_sdk_dynamodb::types::AttributeValue;
+
 use common::{
     dynamodb::DynamoDbClient,
     error::{Error, Result},
@@ -131,39 +132,57 @@ impl UserProfileDb {
     }
 
     pub async fn get_all_users(&self) -> Result<Vec<UserProfileDB>> {
-        let result = self
-            .db
-            .client
-            .scan()
-            .table_name(&self.db.table_name)
-            .filter_expression("SK = :profile")
-            .expression_attribute_values(":profile", AttributeValue::S("PROFILE".to_string()))
-            .send()
-            .await
-            .map_err(|e| Error::db_query_error(e.to_string()))?;
+        let mut all_profiles = Vec::new();
+        let mut exclusive_start_key: Option<HashMap<String, AttributeValue>> = None;
 
-        match result.items {
-            Some(items) => {
+        loop {
+            // tracing::debug!("\nScanning for user profiles");
+            let mut scan = self
+                .db
+                .client
+                .scan()
+                .table_name(&self.db.table_name)
+                .filter_expression("SK = :profile")
+                .expression_attribute_values(":profile", AttributeValue::S("PROFILE".to_string()));
+
+            if let Some(last_key) = &exclusive_start_key {
+                for (k, v) in last_key {
+                    scan = scan.exclusive_start_key(k.clone(), v.clone());
+                }
+            }
+
+            let result = scan
+                .send()
+                .await
+                .map_err(|e| Error::db_query_error(e.to_string()))?;
+
+            if let Some(items) = result.items {
+                // tracing::debug!(batch_size = items.len(), "Retrieved batch of profiles");
+
                 let profiles: Vec<Result<UserProfileDB>> = items
                     .into_iter()
                     .map(|item| self.convert_to_user_profile(&item))
                     .collect();
 
                 // Filter out any conversion errors and collect successful conversions
-                let valid_profiles: Vec<UserProfileDB> = profiles
-                    .into_iter()
-                    .filter_map(|result| result.ok())
-                    .collect();
-
-                if valid_profiles.is_empty() {
-                    Err(Error::not_found("UserProfiles", "No profiles found"))
-                } else {
-                    Ok(valid_profiles)
-                }
+                all_profiles.extend(profiles.into_iter().filter_map(|result| result.ok()));
             }
-            None => Err(Error::not_found("UserProfiles", "No users found")),
+
+            // Check if we need to continue scanning
+            exclusive_start_key = result.last_evaluated_key;
+
+            if exclusive_start_key.is_none() {
+                break;
+            }
+        }
+
+        if all_profiles.is_empty() {
+            Err(Error::not_found("UserProfiles", "No profiles found"))
+        } else {
+            Ok(all_profiles)
         }
     }
+
     // Conversion Helpers
     fn convert_to_user_profile(
         &self,
