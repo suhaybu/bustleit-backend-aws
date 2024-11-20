@@ -36,7 +36,7 @@ pub struct UserTasks {
     pub tasks: Vec<Task>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Task {
     pub category: String,
     pub completed: bool,
