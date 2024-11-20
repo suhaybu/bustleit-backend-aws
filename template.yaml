@@ -41,6 +41,7 @@ Resources:
           Properties:
             Path: /v1/user/profiles
             Method: get
+            TimeoutInMillis: 20000
         GetUserProfilesBatch:
           Type: Api
           Properties:
@@ -54,6 +55,7 @@ Resources:
     Properties:
       CodeUri: src/usertasks-lambda
       Handler: bootstrap
+      Timeout: 900
       Role: !GetAtt UserTasksFunctionRole.Arn
       Events:
         GetAllTasks:
