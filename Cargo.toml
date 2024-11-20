@@ -20,4 +20,4 @@ validator = { version = "0.19", features = ["derive"] }
 
 chrono = { version = "0.4", features = ["serde"] }
 rand = "0.8.5"
-uuid = { version = "1.11.0", features = ["v8"] }
+uuid = { version = "1.11.0", features = ["v4"] }
