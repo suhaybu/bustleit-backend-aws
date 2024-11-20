@@ -251,6 +251,39 @@ impl UserTasksDb {
         Ok(user_tasks)
     }
 
+    pub async fn add_task(&self, user_id: &str, date: &str, task: Task) -> Result<()> {
+        let update = self.db.client.update_item()
+               .table_name(&self.db.table_name)
+               .key("PK", AttributeValue::S(format!("USER#{}", user_id)))
+               .key("SK", AttributeValue::S(format!("TASK#DATE#{}", date)))
+               .update_expression("SET tasks = list_append(if_not_exists(tasks, :empty_list), :task), totalTasks = if_not_exists(totalTasks, :zero) + :one")
+               .expression_attribute_values(":task", AttributeValue::L(vec![self.task_to_av(task)?]))
+               .expression_attribute_values(":empty_list", AttributeValue::L(vec![]))
+               .expression_attribute_values(":zero", AttributeValue::N("0".to_string()))
+               .expression_attribute_values(":one", AttributeValue::N("1".to_string()));
+
+        update
+            .send()
+            .await
+            .map_err(|e| Error::db_query_error(e.to_string()))?;
+
+        Ok(())
+    }
+
+    fn task_to_av(&self, task: Task) -> Result<AttributeValue> {
+        let mut task_map = HashMap::new();
+        task_map.insert("name".to_string(), AttributeValue::S(task.name));
+        task_map.insert("category".to_string(), AttributeValue::S(task.category));
+        task_map.insert("startTime".to_string(), AttributeValue::S(task.start_time));
+        task_map.insert("endTime".to_string(), AttributeValue::S(task.end_time));
+        task_map.insert("taskId".to_string(), AttributeValue::S(task.task_id));
+        task_map.insert("completed".to_string(), AttributeValue::Bool(false));
+        task_map.insert("createdAt".to_string(), AttributeValue::S(task.created_at));
+        task_map.insert("updatedAt".to_string(), AttributeValue::S(task.updated_at));
+
+        Ok(AttributeValue::M(task_map))
+    }
+
     pub async fn delete_task(&self, user_id: &str, task_id: &str) -> Result<()> {
         let task_date = self.get_task_date(user_id, task_id).await?;
 
