@@ -16,3 +16,4 @@ serde.workspace = true
 chrono.workspace = true
 validator.workspace = true
 aws-sdk-dynamodb.workspace = true
+uuid.workspace = true
