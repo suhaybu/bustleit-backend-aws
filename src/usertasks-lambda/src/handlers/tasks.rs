@@ -1,4 +1,4 @@
-use axum::Json;
+use axum::{extract::Path, Json};
 
 use crate::db::UserTasksDb;
 use crate::models::{Task, TasksRequest, TasksResponse};
@@ -56,4 +56,11 @@ pub async fn get_tasks_batch(
         .collect();
 
     Ok(Json(response))
+}
+
+// DELETE /v1/user/:user_id/tasks/:task_id
+pub async fn delete_task(Path((user_id, task_id)): Path<(String, String)>) -> Result<()> {
+    let db = UserTasksDb::new().await?;
+    db.delete_task(&user_id, &task_id).await?;
+    Ok(())
 }
