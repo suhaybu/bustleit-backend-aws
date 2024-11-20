@@ -250,4 +250,50 @@ impl UserTasksDb {
 
         Ok(user_tasks)
     }
+
+    pub async fn delete_task(&self, user_id: &str, task_id: &str) -> Result<()> {
+        let task_date = self.get_task_date(user_id, task_id).await?;
+
+        self.db
+            .client
+            .update_item()
+            .table_name(&self.db.table_name)
+            .key("PK", AttributeValue::S(format!("USER#{}", user_id)))
+            .key("SK", AttributeValue::S(format!("TASK#DATE#{}", task_date)))
+            .update_expression("REMOVE tasks[pos]")
+            .condition_expression("tasks[pos].taskId = :task_id")
+            .expression_attribute_values(":task_id", AttributeValue::S(task_id.to_string()))
+            .send()
+            .await
+            .map_err(|e| Error::db_query_error(e.to_string()))?;
+
+        Ok(())
+    }
+
+    async fn get_task_date(&self, user_id: &str, task_id: &str) -> Result<String> {
+        let result = self
+            .db
+            .client
+            .query()
+            .table_name(&self.db.table_name)
+            .key_condition_expression("PK = :pk AND begins_with(SK, :sk)")
+            .expression_attribute_values(":pk", AttributeValue::S(format!("USER#{}", user_id)))
+            .expression_attribute_values(":sk", AttributeValue::S("TASK#DATE#".to_string()))
+            .filter_expression("contains(tasks[*].taskId, :task_id)")
+            .expression_attribute_values(":task_id", AttributeValue::S(task_id.to_string()))
+            .send()
+            .await
+            .map_err(|e| Error::db_query_error(e.to_string()))?;
+
+        match result.items {
+            Some(items) if !items.is_empty() => {
+                let date = items[0]
+                    .get("date")
+                    .and_then(|v| v.as_s().ok())
+                    .ok_or_else(|| Error::db_parse_error("Missing date"))?;
+                Ok(date.to_string())
+            }
+            _ => Err(Error::not_found("Task", task_id.to_string())),
+        }
+    }
 }
