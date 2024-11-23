@@ -7,13 +7,11 @@ edition = "2021"
 common = { path = "../common" }
 axum.workspace = true
 lambda_http.workspace = true
-lambda_runtime.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-serde_json.workspace = true
 serde.workspace = true
 chrono.workspace = true
 validator.workspace = true
-aws-sdk-dynamodb.workspace = true
 uuid.workspace = true
+sqlx.workspace = true
