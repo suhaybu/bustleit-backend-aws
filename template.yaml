@@ -8,6 +8,23 @@ Parameters:
     Type: String
     Description: API authentication token
     NoEcho: true
+  NeonHost:
+    Type: String
+    Description: Neon database host
+  NeonPort:
+    Type: String
+    Description: Neon database port
+  NeonUser:
+    Type: String
+    Description: Neon database user
+    NoEcho: true
+  NeonPassword:
+    Type: String
+    Description: Neon database password
+    NoEcho: true
+  NeonDb:
+    Type: String
+    Description: Neon database name
 
 Globals:
   Function:
@@ -20,6 +37,11 @@ Globals:
       Variables:
         DYNAMODB_TABLE: BustleIt-DB
         TEST_API_TOKEN: !Ref TestApiToken
+        NEON_HOST: !Ref NeonHost
+        NEON_PORT: !Ref NeonPort
+        NEON_USER: !Ref NeonUser
+        NEON_PASSWORD: !Ref NeonPassword
+        NEON_DB: !Ref NeonDb
 
 Resources:
   UserProfileFunction:
