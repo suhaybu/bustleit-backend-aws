@@ -33,3 +33,21 @@ impl Profile {
         serde_json::from_value(self.personality_scores.clone()).ok()
     }
 }
+
+impl Default for PersonalityScores {
+    // If PersonalityScores does not exist, backtrack to this
+    fn default() -> Self {
+        Self {
+            turbulent: 0.0,
+            introverted: 0.0,
+            prospecting: 0.0,
+            judging: 0.0,
+            assertive: 0.0,
+            feeling: 0.0,
+            extraverted: 0.0,
+            observant: 0.0,
+            thinking: 0.0,
+            intuitive: 0.0,
+        }
+    }
+}
