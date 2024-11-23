@@ -1,15 +1,13 @@
-use axum::{
-    extract::{Path, Query},
-    Json,
-};
+use axum::{extract::Path, extract::Query, Json};
 use chrono::NaiveDate;
+use std::collections::HashMap;
+use uuid::Uuid;
 
-use crate::db::UserTasksDb;
-use crate::models::{
-    query::{DateRangeQuery, DATE_FMT},
-    response::ScheduleResponse,
-};
 use common::error::{Error, Result};
+
+use crate::db::TasksDb;
+use crate::models::query::{DateRangeQuery, DATE_FMT};
+use crate::models::response::{DayTasks, ScheduleResponse, Task};
 
 /// Retrieves a user's schedule for a specified time period
 ///
@@ -23,95 +21,94 @@ use common::error::{Error, Result};
 /// - `until`: Optional end date in YYYY-MM-DD format
 /// - `range`: Optional number of days to fetch (1-31). Cannot be used with 'until'
 /// - `skip_empty`: Optional bool, if true, does not return any empty schedules
-///
-/// # Examples
-///
-/// Single day schedule:
-/// ```text
-/// GET /v1/user/542172eb-c417-46c0-b9b1-78d1b7630bf5/schedule?date=2024-11-07
-/// ```
-///
-/// Date range with end date:
-/// ```text
-/// GET /v1/user/542172eb-c417-46c0-b9b1-78d1b7630bf5/schedule?date=2024-11-07&until=2024-11-14
-/// ```
-///
-/// Date range with number of days and skip empty:
-/// ```text
-/// GET /v1/user/542172eb-c417-46c0-b9b1-78d1b7630bf5/schedule?date=2024-11-07&range=7&skip_empty=true
-/// ```
-///
-/// Today's schedule (default):
-/// ```text
-/// GET /v1/user/542172eb-c417-46c0-b9b1-78d1b7630bf5/schedule
-/// ```
-///
-/// # Returns
-/// - `200 OK`: Schedule data for the requested time period
-/// - `400 Bad Request`: Invalid date format or range parameters
-/// - `500 Internal Server Error`: Database or server errors
-///
-/// # Flow
-/// 1. Validates query parameters for date formats and logical consistency
-/// 2. Establishes database connection
-/// 3. Determines date range based on query parameters
-/// 4. Retrieves tasks from database
-/// 5. Builds response including empty days within the range
 pub async fn get_user_schedule(
-    Path(user_id): Path<String>,
+    Path(user_id): Path<Uuid>,
     Query(query): Query<DateRangeQuery>,
 ) -> Result<Json<Option<ScheduleResponse>>> {
     query.validate_all()?;
-    let db = UserTasksDb::new().await?;
 
-    // If no start date is supplied, will take today's date
+    let db = TasksDb::new().await?;
+
+    // Get start date (or today if not provided)
     let start_date = query
         .date
-        .unwrap_or_else(|| chrono::Local::now().format(DATE_FMT).to_string());
+        .as_ref()
+        .map(|d| NaiveDate::parse_from_str(d, DATE_FMT))
+        .transpose()
+        .map_err(|_| Error::validation("Invalid start date format"))?
+        .unwrap_or_else(|| chrono::Local::now().date_naive());
 
-    let (end_date, is_range_query) = if let Some(until) = query.until {
-        (until, true)
+    // Calculate end date if range or until is provided
+    let end_date = if let Some(until) = &query.until {
+        Some(
+            NaiveDate::parse_from_str(until, DATE_FMT)
+                .map_err(|_| Error::validation("Invalid end date format"))?,
+        )
     } else if let Some(range) = query.range {
-        let end = NaiveDate::parse_from_str(&start_date, DATE_FMT)
-            .unwrap() // Safe due to validation
-            .checked_add_days(chrono::Days::new((range - 1) as u64))
-            .ok_or_else(|| Error::validation("Invalid date range calculation"))?
-            .format(DATE_FMT)
-            .to_string();
-        (end, true)
+        Some(
+            start_date
+                .checked_add_days(chrono::Days::new((range - 1) as u64))
+                .ok_or_else(|| Error::validation("Invalid date range calculation"))?,
+        )
     } else {
-        (start_date.clone(), false)
+        None
     };
 
-    // Fetch tasks from DB
-    let tasks = db
-        .get_user_schedule(&user_id, &start_date, Some(&end_date))
-        .await?;
+    // Fetch schedule and tasks from database
+    let (schedules, tasks) = db.get_user_schedule(user_id, start_date, end_date).await?;
 
-    if !is_range_query && query.skip_empty && tasks.is_empty() {
+    if schedules.is_empty() && query.skip_empty {
         return Ok(Json(None));
     }
 
-    let mut response = ScheduleResponse::new(user_id);
+    let mut response = ScheduleResponse::new(user_id.to_string());
 
+    // Group tasks by date
+    let mut task_groups = HashMap::new();
     for task in tasks {
-        if !task.tasks.is_empty() || !query.skip_empty {
-            response.add_day(task.date.clone(), Some(task));
+        task_groups
+            .entry(task.schedule_date)
+            .or_insert_with(Vec::new)
+            .push(task);
+    }
+
+    // Process each schedule
+    for schedule in schedules {
+        let date_str = schedule.schedule_date.format(DATE_FMT).to_string();
+        let tasks = task_groups
+            .remove(&schedule.schedule_date)
+            .unwrap_or_default();
+
+        if !tasks.is_empty() || !query.skip_empty {
+            response.data.insert(
+                date_str,
+                DayTasks {
+                    total_tasks: schedule.total_tasks,
+                    completed_tasks: schedule.completed_tasks,
+                    tasks: tasks.into_iter().map(Task::from).collect(),
+                },
+            );
         }
     }
 
-    // Handles calculating the end date if query was given a range
-    if is_range_query {
-        let start = NaiveDate::parse_from_str(&start_date, DATE_FMT).unwrap();
-        let end = NaiveDate::parse_from_str(&end_date, DATE_FMT).unwrap();
-        let mut current = start;
-
-        while current <= end {
-            let current_date = current.format(DATE_FMT).to_string();
-            if !response.data.contains_key(&current_date) && !query.skip_empty {
-                response.add_day(current_date, None);
+    // Fill in empty days for date ranges
+    if let Some(end_date) = end_date {
+        let mut current = start_date;
+        while current <= end_date {
+            let date_str = current.format(DATE_FMT).to_string();
+            if !response.data.contains_key(&date_str) && !query.skip_empty {
+                response.data.insert(
+                    date_str,
+                    DayTasks {
+                        total_tasks: 0,
+                        completed_tasks: 0,
+                        tasks: Vec::new(),
+                    },
+                );
             }
-            current = current.succ_opt().unwrap();
+            current = current
+                .checked_add_days(chrono::Days::new(1))
+                .expect("Invalid date calculation");
         }
     }
 

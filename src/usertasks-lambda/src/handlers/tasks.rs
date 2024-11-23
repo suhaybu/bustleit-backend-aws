@@ -1,33 +1,31 @@
 use axum::{extract::Path, Json};
+use chrono::{NaiveDate, NaiveTime};
 use uuid::Uuid;
 
-use crate::db::UserTasksDb;
+use crate::db::TasksDb;
 use crate::models::{
+    query::DATE_FMT,
     request::{CreateTaskRequest, TasksRequest},
     response::{Task, TasksResponse},
 };
 use common::error::{Error, Result};
-use common::models::dynamodb as DB;
 
 // GET /v1/tasks - Get all tasks
 pub async fn get_all_tasks() -> Result<Json<Vec<TasksResponse>>> {
-    let db = UserTasksDb::new().await?;
-    let all_tasks = db.get_all_users_tasks().await?;
+    let db = TasksDb::new().await?;
+    let tasks = db.get_all_tasks().await?;
 
-    let response = all_tasks
+    let mut user_tasks_map = std::collections::HashMap::new();
+    for task in tasks {
+        user_tasks_map
+            .entry(task.user_id)
+            .or_insert_with(Vec::new)
+            .push(Task::from(task));
+    }
+
+    let response = user_tasks_map
         .into_iter()
-        .map(|tasks| {
-            let user_id = tasks
-                .pk
-                .strip_prefix("USER#")
-                .unwrap_or(&tasks.pk) // Fallback: if no USER# found, return as is
-                .to_string();
-
-            TasksResponse {
-                user_id,
-                all_tasks: tasks.tasks.into_iter().map(Task::from).collect(),
-            }
-        })
+        .map(|(user_id, all_tasks)| TasksResponse { user_id, all_tasks })
         .collect();
 
     Ok(Json(response))
@@ -41,54 +39,66 @@ pub async fn get_tasks_batch(
         return Err(Error::validation("At least one user ID must be provided"));
     }
 
-    let db = UserTasksDb::new().await?;
-    let user_tasks = db.get_users_tasks(&payload.user_ids).await?;
+    let db = TasksDb::new().await?;
+    let tasks = db.get_users_tasks(&payload.user_ids).await?;
 
-    let response = user_tasks
+    let mut user_tasks_map = std::collections::HashMap::new();
+    for task in tasks {
+        user_tasks_map
+            .entry(task.user_id)
+            .or_insert_with(Vec::new)
+            .push(Task::from(task));
+    }
+
+    let response = user_tasks_map
         .into_iter()
-        .map(|tasks| {
-            let user_id = tasks
-                .pk
-                .strip_prefix("USER#")
-                .unwrap_or(&tasks.pk)
-                .to_string();
-
-            TasksResponse {
-                user_id,
-                all_tasks: tasks.tasks.into_iter().map(Task::from).collect(),
-            }
-        })
+        .map(|(user_id, all_tasks)| TasksResponse { user_id, all_tasks })
         .collect();
 
     Ok(Json(response))
 }
 
 // DELETE /v1/user/:user_id/tasks/:task_id
-pub async fn delete_task(Path((user_id, task_id)): Path<(String, String)>) -> Result<()> {
-    let db = UserTasksDb::new().await?;
-    db.delete_task(&user_id, &task_id).await?;
+pub async fn delete_task(Path((user_id, task_id)): Path<(Uuid, Uuid)>) -> Result<()> {
+    let db = TasksDb::new().await?;
+    db.delete_task(user_id, task_id).await?;
     Ok(())
 }
 
-// POST /v1/user/:user_id/tasks
+// POST /v1/user/:user_id/tasks - Create task
 pub async fn create_task(
-    Path(user_id): Path<String>,
+    Path(user_id): Path<Uuid>,
     Json(payload): Json<CreateTaskRequest>,
-) -> Result<Json<DB::Task>> {
-    let db = UserTasksDb::new().await?;
-    let task_id = Uuid::new_v4().to_string();
+) -> Result<Json<Task>> {
+    // Parse date
+    let date = NaiveDate::parse_from_str(&payload.date, DATE_FMT)
+        .map_err(|_| Error::validation("Invalid date format"))?;
 
-    let task = DB::Task::new(
-        payload.name,
-        payload.category,
-        payload.start_time,
-        payload.end_time,
-        task_id,
-    );
+    if !payload.start_time.contains(':') || !payload.end_time.contains(':') {
+        return Err(Error::validation("Time must be in HH:MM format"));
+    }
 
-    db.add_task(&user_id, &payload.date, task.clone()).await?;
+    let start_time = NaiveTime::parse_from_str(&payload.start_time, "%H:%M")
+        .map_err(|_| Error::validation("Start time must be in HH:MM format"))?;
+    let end_time = NaiveTime::parse_from_str(&payload.end_time, "%H:%M")
+        .map_err(|_| Error::validation("End time must be in HH:MM format"))?;
 
-    Ok(Json(task))
+    // Validate times
+    if end_time <= start_time {
+        return Err(Error::validation("End time must be after start time"));
+    }
+
+    let db = TasksDb::new().await?;
+    let task = db
+        .add_task(
+            user_id,
+            date,
+            payload.name,
+            payload.category,
+            &payload.start_time,
+            &payload.end_time,
+        )
+        .await?;
+
+    Ok(Json(Task::from(task)))
 }
-
-// PATCH /v1/user/:user_id/tasks/:task_id
