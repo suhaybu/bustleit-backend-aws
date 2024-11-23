@@ -1,8 +1,8 @@
 use axum::{extract::Query, Json};
 
-use crate::db::UserProfileDb;
+use crate::db::ProfileDb;
 use crate::models::{convert_profiles, UserProfile, UserProfilesBatchRequest, UserProfilesQuery};
-use common::error::{Error, Result};
+use common::error_new::{Error, Result};
 
 /// POST: /v1/user/profiles/batch
 /// Retrieves multiple user profiles in a single request
@@ -25,8 +25,8 @@ pub async fn get_batch(
         return Err(Error::validation("At least one user ID must be provided"));
     }
 
-    let db = UserProfileDb::new().await?;
-    let profiles_db = db.get_user_profiles(payload.user_ids).await?;
+    let db = ProfileDb::new().await?;
+    let profiles_db = db.get_profiles(&payload.user_ids).await?;
     let respoonse = convert_profiles(profiles_db);
 
     Ok(Json(respoonse))
@@ -51,17 +51,16 @@ pub async fn get_batch(
 pub async fn get_profiles(
     Query(query): Query<UserProfilesQuery>,
 ) -> Result<Json<Vec<UserProfile>>> {
-    let db = UserProfileDb::new().await?;
+    let db = ProfileDb::new().await?;
 
     let profiles_db = match query.cluster {
         Some(cluster) => {
             if cluster < 0 {
-                return Err(Error::field_validation(
-                    "cluster",
+                return Err(Error::validation(
                     "Cluster ID must be a non-negative integer",
                 ));
             }
-            db.get_users_by_cluster(cluster).await
+            db.get_profiles_by_cluster(cluster).await
         }
         None => db.get_all_users().await,
     }?;

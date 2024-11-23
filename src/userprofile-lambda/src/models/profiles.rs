@@ -1,10 +1,12 @@
-use common::models::dynamodb::UserProfileDB;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+use common::models::database as DB;
 
 // POST Request structure for /user/profiles/batch
 #[derive(Deserialize)]
 pub struct UserProfilesBatchRequest {
-    pub user_ids: Vec<String>,
+    pub user_ids: Vec<Uuid>,
 }
 
 // GET Query structure for /user/profiles
@@ -15,7 +17,7 @@ pub struct UserProfilesQuery {
 
 #[derive(Serialize, Deserialize)]
 pub struct UserProfile {
-    pub user_id: String,
+    pub user_id: Uuid,
     pub scores: PersonalityScores,
     pub preferences: Vec<String>,
 }
@@ -35,28 +37,30 @@ pub struct PersonalityScores {
 }
 
 // Convert from DynamoDB UserProfileDB to UserProfile
-impl From<&UserProfileDB> for UserProfile {
-    fn from(db_profile: &UserProfileDB) -> Self {
+impl From<&DB::Profile> for UserProfile {
+    fn from(db_profile: &DB::Profile) -> Self {
+        let scores = db_profile.get_typed_scores().unwrap_or_default();
+
         Self {
-            user_id: db_profile.pk.trim_start_matches("USER#").to_string(),
+            user_id: db_profile.user_id,
             preferences: db_profile.preferences.clone(),
             scores: PersonalityScores {
-                introverted: db_profile.scores.introverted,
-                extraverted: db_profile.scores.extraverted,
-                observant: db_profile.scores.observant,
-                intuitive: db_profile.scores.intuitive,
-                thinking: db_profile.scores.thinking,
-                feeling: db_profile.scores.feeling,
-                judging: db_profile.scores.judging,
-                prospecting: db_profile.scores.prospecting,
-                assertive: db_profile.scores.assertive,
-                turbulent: db_profile.scores.turbulent,
+                introverted: scores.introverted,
+                extraverted: scores.extraverted,
+                observant: scores.observant,
+                intuitive: scores.intuitive,
+                thinking: scores.thinking,
+                feeling: scores.feeling,
+                judging: scores.judging,
+                prospecting: scores.prospecting,
+                assertive: scores.assertive,
+                turbulent: scores.turbulent,
             },
         }
     }
 }
 
-// Helper function to convert a slice of DynamoDB UserProfiles
-pub fn convert_profiles(profiles_db: Vec<UserProfileDB>) -> Vec<UserProfile> {
+// Helper function to convert a slice of DB UserProfiles
+pub fn convert_profiles(profiles_db: Vec<DB::Profile>) -> Vec<UserProfile> {
     profiles_db.iter().map(UserProfile::from).collect()
 }
