@@ -1,332 +1,404 @@
-use aws_sdk_dynamodb::types::AttributeValue;
-use common::{
-    dynamodb::DynamoDbClient,
-    error::{Error, Result},
-    models::dynamodb::{Task, UserTasks},
-};
-use std::collections::HashMap;
+use chrono::{DateTime, NaiveDate, NaiveTime, Utc};
+use sqlx::{PgPool, Row};
+use uuid::Uuid;
 
-pub struct UserTasksDb {
-    db: DynamoDbClient,
+use common::{
+    database::DatabaseConfig,
+    error::{Error, Result},
+    models::database as DB,
+};
+
+pub struct TasksDb {
+    pool: PgPool,
 }
 
-impl UserTasksDb {
+impl TasksDb {
     pub async fn new() -> Result<Self> {
-        Ok(Self {
-            db: DynamoDbClient::new().await?,
-        })
+        let config = DatabaseConfig::new()?;
+        let pool = common::database::create_pool(config).await?;
+
+        Ok(Self { pool })
     }
 
-    pub async fn get_all_users_tasks(&self) -> Result<Vec<UserTasks>> {
-        let mut all_tasks = Vec::new();
-        let mut exclusive_start_key: Option<HashMap<String, AttributeValue>> = None;
+    pub async fn get_all_tasks(&self) -> Result<Vec<DB::Task>> {
+        let rows = sqlx::query(
+            "SELECT id, user_id, schedule_date, name, category,
+                    start_time, end_time, completed, created_at, updated_at
+             FROM tasks
+             ORDER BY user_id, schedule_date, start_time",
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(Error::from)?;
 
-        loop {
-            // tracing::debug!("Scanning for user tasks");
+        let tasks = rows
+            .into_iter()
+            .map(|row| DB::Task {
+                id: row.get("id"),
+                user_id: row.get("user_id"),
+                schedule_date: row.get("schedule_date"),
+                name: row.get("name"),
+                category: row.get("category"),
+                start_time: row.get("start_time"),
+                end_time: row.get("end_time"),
+                completed: row.get("completed"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+            })
+            .collect();
 
-            let mut scan = self
-                .db
-                .client
-                .scan()
-                .table_name(&self.db.table_name)
-                .filter_expression("begins_with(SK, :task_prefix)")
-                .expression_attribute_values(
-                    ":task_prefix",
-                    AttributeValue::S("TASK#DATE#".to_string()),
-                );
-
-            if let Some(last_key) = &exclusive_start_key {
-                for (k, v) in last_key.iter() {
-                    scan = scan.exclusive_start_key(k.to_string(), v.clone());
-                }
-            }
-
-            let result = scan
-                .send()
-                .await
-                .map_err(|e| Error::db_query_error(e.to_string()))?;
-
-            if let Some(items) = result.items {
-                // tracing::debug!(batch_size = items.len(), "Retrieved batch of tasks");
-
-                let tasks: Vec<Result<UserTasks>> = items
-                    .into_iter()
-                    .map(|item| self.convert_to_user_tasks(&item))
-                    .collect();
-
-                all_tasks.extend(tasks.into_iter().filter_map(|r| r.ok()));
-            }
-
-            exclusive_start_key = result.last_evaluated_key;
-
-            if exclusive_start_key.is_none() {
-                break;
-            }
-        }
-        // tracing::debug!(total_tasks = all_tasks.len(), "Retrieved all tasks");
-        Ok(all_tasks)
+        Ok(tasks)
     }
 
-    pub async fn get_users_tasks(&self, user_ids: &[String]) -> Result<Vec<UserTasks>> {
-        let mut all_tasks = Vec::new();
+    pub async fn get_users_tasks(&self, user_ids: &[Uuid]) -> Result<Vec<DB::Task>> {
+        let rows = sqlx::query(
+            "SELECT id, user_id, schedule_date, name, category,
+                    start_time, end_time, completed, created_at, updated_at
+             FROM tasks
+             WHERE user_id = ANY($1)
+             ORDER BY user_id, schedule_date, start_time",
+        )
+        .bind(user_ids)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(Error::from)?;
 
-        for user_id in user_ids {
-            let pk = format!("USER#{}", user_id);
+        let tasks = rows
+            .into_iter()
+            .map(|row| DB::Task {
+                id: row.get("id"),
+                user_id: row.get("user_id"),
+                schedule_date: row.get("schedule_date"),
+                name: row.get("name"),
+                category: row.get("category"),
+                start_time: row.get("start_time"),
+                end_time: row.get("end_time"),
+                completed: row.get("completed"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+            })
+            .collect();
 
-            let result = self
-                .db
-                .client
-                .query()
-                .table_name(&self.db.table_name)
-                .key_condition_expression("PK = :pk AND begins_with(SK, :task_prefix)")
-                .expression_attribute_values(":pk", AttributeValue::S(pk))
-                .expression_attribute_values(
-                    ":task_prefix",
-                    AttributeValue::S("TASK#DATE#".to_string()),
-                )
-                .send()
-                .await
-                .map_err(|e| Error::db_query_error(e.to_string()))?;
-
-            if let Some(items) = result.items {
-                let tasks: Vec<Result<UserTasks>> = items
-                    .into_iter()
-                    .map(|item| self.convert_to_user_tasks(&item))
-                    .collect();
-
-                all_tasks.extend(tasks.into_iter().filter_map(|r| r.ok()));
-            }
-        }
-
-        Ok(all_tasks)
+        Ok(tasks)
     }
 
     pub async fn get_user_schedule(
         &self,
-        user_id: &str,
-        date: &str,
-        date_end: Option<&str>,
-    ) -> Result<Vec<UserTasks>> {
-        if let Some(date_end) = date_end {
-            self.get_user_schedule_range(user_id, date, date_end).await
-        } else {
-            let tasks = self.get_user_schedule_single_day(user_id, date).await?;
-            Ok(vec![tasks])
+        user_id: Uuid,
+        date: NaiveDate,
+        date_end: Option<NaiveDate>,
+    ) -> Result<(Vec<DB::Schedule>, Vec<DB::Task>)> {
+        match date_end {
+            Some(end_date) => self.get_user_schedule_range(user_id, date, end_date).await,
+            None => {
+                let (schedule, tasks) = self.get_user_schedule_single_day(user_id, date).await?;
+                Ok((vec![schedule], tasks))
+            }
         }
     }
 
-    async fn get_user_schedule_single_day(&self, user_id: &str, date: &str) -> Result<UserTasks> {
-        let pk = format!("USER#{}", user_id);
-        let sk = format!("TASK#DATE#{}", date);
+    async fn get_user_schedule_single_day(
+        &self,
+        user_id: Uuid,
+        date: NaiveDate,
+    ) -> Result<(DB::Schedule, Vec<DB::Task>)> {
+        // Get or create schedule
+        let schedule_row = sqlx::query(
+            "SELECT user_id, schedule_date, completed_tasks, total_tasks, created_at, updated_at
+             FROM schedules
+             WHERE user_id = $1 AND schedule_date = $2",
+        )
+        .bind(user_id)
+        .bind(date)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(Error::from)?;
 
-        let result = self
-            .db
-            .client
-            .get_item()
-            .table_name(&self.db.table_name)
-            .key("PK", AttributeValue::S(pk))
-            .key("SK", AttributeValue::S(sk))
-            .send()
-            .await
-            .map_err(|e| Error::db_query_error(e.to_string()))?;
+        let schedule = match schedule_row {
+            Some(row) => DB::Schedule {
+                user_id: row.get("user_id"),
+                schedule_date: row.get("schedule_date"),
+                completed_tasks: row.get("completed_tasks"),
+                total_tasks: row.get("total_tasks"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+            },
+            None => DB::Schedule {
+                user_id,
+                schedule_date: date,
+                completed_tasks: 0,
+                total_tasks: 0,
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+            },
+        };
 
-        match result.item {
-            Some(item) => self.convert_to_user_tasks(&item),
-            None => {
-                // If no tasks exist for this date, return an empty UserTasks object
-                Ok(UserTasks::new(user_id, date))
-            }
-        }
+        // Get tasks
+        let task_rows = sqlx::query(
+            "SELECT id, user_id, schedule_date, name, category,
+                    start_time, end_time, completed, created_at, updated_at
+             FROM tasks
+             WHERE user_id = $1 AND schedule_date = $2
+             ORDER BY start_time",
+        )
+        .bind(user_id)
+        .bind(date)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(Error::from)?;
+
+        let tasks = task_rows
+            .into_iter()
+            .map(|row| DB::Task {
+                id: row.get("id"),
+                user_id: row.get("user_id"),
+                schedule_date: row.get("schedule_date"),
+                name: row.get("name"),
+                category: row.get("category"),
+                start_time: row.get("start_time"),
+                end_time: row.get("end_time"),
+                completed: row.get("completed"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+            })
+            .collect();
+
+        Ok((schedule, tasks))
     }
 
     async fn get_user_schedule_range(
         &self,
-        user_id: &str,
-        date_start: &str,
-        date_end: &str,
-    ) -> Result<Vec<UserTasks>> {
-        let pk = DynamoDbClient::create_user_pk(user_id);
-        let start_sk = DynamoDbClient::create_task_sk(date_start);
-        let end_sk = DynamoDbClient::create_task_sk(date_end);
+        user_id: Uuid,
+        start_date: NaiveDate,
+        end_date: NaiveDate,
+    ) -> Result<(Vec<DB::Schedule>, Vec<DB::Task>)> {
+        // Get schedules
+        let schedule_rows = sqlx::query(
+            "SELECT user_id, schedule_date, completed_tasks, total_tasks, created_at, updated_at
+             FROM schedules
+             WHERE user_id = $1 AND schedule_date BETWEEN $2 AND $3
+             ORDER BY schedule_date",
+        )
+        .bind(user_id)
+        .bind(start_date)
+        .bind(end_date)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(Error::from)?;
 
-        let result = self
-            .db
-            .client
-            .query()
-            .table_name(&self.db.table_name)
-            .key_condition_expression("PK = :pk AND SK BETWEEN :start_sk AND :end_sk")
-            .expression_attribute_values(":pk", AttributeValue::S(pk))
-            .expression_attribute_values(":start_sk", AttributeValue::S(start_sk))
-            .expression_attribute_values(":end_sk", AttributeValue::S(end_sk))
-            .send()
-            .await
-            .map_err(|e| Error::db_query_error(e.to_string()))?;
+        let schedules = schedule_rows
+            .into_iter()
+            .map(|row| DB::Schedule {
+                user_id: row.get("user_id"),
+                schedule_date: row.get("schedule_date"),
+                completed_tasks: row.get("completed_tasks"),
+                total_tasks: row.get("total_tasks"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+            })
+            .collect();
 
-        match result.items {
-            Some(items) => {
-                let tasks: Vec<Result<UserTasks>> = items
-                    .into_iter()
-                    .map(|item| self.convert_to_user_tasks(&item))
-                    .collect();
+        // Get tasks
+        let task_rows = sqlx::query(
+            "SELECT id, user_id, schedule_date, name, category,
+                    start_time, end_time, completed, created_at, updated_at
+             FROM tasks
+             WHERE user_id = $1 AND schedule_date BETWEEN $2 AND $3
+             ORDER BY schedule_date, start_time",
+        )
+        .bind(user_id)
+        .bind(start_date)
+        .bind(end_date)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(Error::from)?;
 
-                let valid_tasks: Vec<UserTasks> =
-                    tasks.into_iter().filter_map(|result| result.ok()).collect();
+        let tasks = task_rows
+            .into_iter()
+            .map(|row| DB::Task {
+                id: row.get("id"),
+                user_id: row.get("user_id"),
+                schedule_date: row.get("schedule_date"),
+                name: row.get("name"),
+                category: row.get("category"),
+                start_time: row.get("start_time"),
+                end_time: row.get("end_time"),
+                completed: row.get("completed"),
+                created_at: row.get("created_at"),
+                updated_at: row.get("updated_at"),
+            })
+            .collect();
 
-                Ok(valid_tasks)
-            }
-
-            None => Ok(Vec::new()),
-        }
+        Ok((schedules, tasks))
     }
 
-    /// Converts a DynamoDB item into a UserTasks struct
-    ///
-    /// Takes a HashMap of DynamoDB AttributeValues and converts them into a UserTasks object
-    /// by extracting and parsing:
-    /// - date from the "date" field
-    /// - user ID from the "PK" field (strips "USER#" prefix)
-    /// - tasks array from the "tasks" field, where each task contains:
-    ///   - name
-    ///   - category
-    ///   - start time
-    ///   - end time
-    ///   - task ID
-    ///
-    /// Returns Result<UserTasks, Error> where:
-    /// - Success: Fully populated UserTasks object
-    /// - Error: DynamoDbError::ParseError if required fields are missing/malformed
-    ///
-    /// Used by get_user_tasks() and similar functions to convert raw DynamoDB
-    /// responses into the UserTasks domain model.
-    fn convert_to_user_tasks(&self, item: &HashMap<String, AttributeValue>) -> Result<UserTasks> {
-        let date = item
-            .get("date")
-            .and_then(|v| v.as_s().ok())
-            .ok_or_else(|| Error::db_parse_error("Missing date"))?
-            .clone();
+    pub async fn add_task(
+        &self,
+        user_id: Uuid,
+        date: NaiveDate,
+        name: String,
+        category: String,
+        start_time: &str,
+        end_time: &str,
+    ) -> Result<DB::Task> {
+        let mut tx = self.pool.begin().await.map_err(Error::from)?;
 
-        let uuid = item
-            .get("PK")
-            .and_then(|v| v.as_s().ok())
-            .map(|s| s.trim_start_matches("USER#").to_string())
-            .ok_or_else(|| Error::db_parse_error("Missing PK"))?;
+        let start_time = Self::format_time(date, start_time)?;
+        let end_time = Self::format_time(date, end_time)?;
 
-        let mut user_tasks = UserTasks::new(&uuid, &date);
+        // Insert or update schedule
+        sqlx::query(
+            "INSERT INTO schedules (user_id, schedule_date, total_tasks, completed_tasks)
+             VALUES ($1, $2, 1, 0)
+             ON CONFLICT (user_id, schedule_date)
+             DO UPDATE SET total_tasks = schedules.total_tasks + 1",
+        )
+        .bind(user_id)
+        .bind(date)
+        .execute(&mut *tx)
+        .await
+        .map_err(Error::from)?;
 
-        if let Some(AttributeValue::L(tasks)) = item.get("tasks") {
-            for task_av in tasks {
-                if let AttributeValue::M(task_map) = task_av {
-                    let task = Task::new(
-                        task_map
-                            .get("name")
-                            .and_then(|v| v.as_s().ok())
-                            .unwrap()
-                            .to_string(),
-                        task_map
-                            .get("category")
-                            .and_then(|v| v.as_s().ok())
-                            .unwrap()
-                            .to_string(),
-                        task_map
-                            .get("startTime")
-                            .and_then(|v| v.as_s().ok())
-                            .unwrap()
-                            .to_string(),
-                        task_map
-                            .get("endTime")
-                            .and_then(|v| v.as_s().ok())
-                            .unwrap()
-                            .to_string(),
-                        task_map
-                            .get("taskId")
-                            .and_then(|v| v.as_s().ok())
-                            .unwrap()
-                            .to_string(),
-                    );
-                    user_tasks.add_task(task);
-                }
-            }
-        }
+        // Insert task
+        let task_row = sqlx::query(
+            "INSERT INTO tasks
+             (user_id, schedule_date, name, category, start_time, end_time)
+             VALUES ($1, $2, $3, $4, $5, $6)
+             RETURNING id, user_id, schedule_date, name, category,
+                       start_time, end_time, completed, created_at, updated_at",
+        )
+        .bind(user_id)
+        .bind(date)
+        .bind(name)
+        .bind(category)
+        .bind(start_time)
+        .bind(end_time)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(Error::from)?;
 
-        Ok(user_tasks)
+        let task = DB::Task {
+            id: task_row.get("id"),
+            user_id: task_row.get("user_id"),
+            schedule_date: task_row.get("schedule_date"),
+            name: task_row.get("name"),
+            category: task_row.get("category"),
+            start_time: task_row.get("start_time"),
+            end_time: task_row.get("end_time"),
+            completed: task_row.get("completed"),
+            created_at: task_row.get("created_at"),
+            updated_at: task_row.get("updated_at"),
+        };
+
+        tx.commit().await.map_err(Error::from)?;
+
+        Ok(task)
     }
 
-    pub async fn add_task(&self, user_id: &str, date: &str, task: Task) -> Result<()> {
-        let update = self.db.client.update_item()
-               .table_name(&self.db.table_name)
-               .key("PK", AttributeValue::S(format!("USER#{}", user_id)))
-               .key("SK", AttributeValue::S(format!("TASK#DATE#{}", date)))
-               .update_expression("SET tasks = list_append(if_not_exists(tasks, :empty_list), :task), totalTasks = if_not_exists(totalTasks, :zero) + :one")
-               .expression_attribute_values(":task", AttributeValue::L(vec![self.convert_task_to_av(task)?]))
-               .expression_attribute_values(":empty_list", AttributeValue::L(vec![]))
-               .expression_attribute_values(":zero", AttributeValue::N("0".to_string()))
-               .expression_attribute_values(":one", AttributeValue::N("1".to_string()));
+    pub async fn delete_task(&self, user_id: Uuid, task_id: Uuid) -> Result<()> {
+        let mut tx = self.pool.begin().await.map_err(Error::from)?;
 
-        update
-            .send()
+        // Get task info
+        let task_row = sqlx::query(
+            "SELECT schedule_date, completed FROM tasks WHERE id = $1 AND user_id = $2",
+        )
+        .bind(task_id)
+        .bind(user_id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(Error::from)?
+        .ok_or_else(|| Error::not_found(format!("Task {}", task_id)))?;
+
+        // Delete task
+        sqlx::query("DELETE FROM tasks WHERE id = $1")
+            .bind(task_id)
+            .execute(&mut *tx)
             .await
-            .map_err(|e| Error::db_query_error(e.to_string()))?;
+            .map_err(Error::from)?;
+
+        // Update schedule
+        sqlx::query(
+            "UPDATE schedules
+             SET total_tasks = total_tasks - 1,
+                 completed_tasks = completed_tasks - CASE WHEN $3 THEN 1 ELSE 0 END
+             WHERE user_id = $1 AND schedule_date = $2",
+        )
+        .bind(user_id)
+        .bind(task_row.get::<NaiveDate, _>("schedule_date"))
+        .bind(task_row.get::<bool, _>("completed"))
+        .execute(&mut *tx)
+        .await
+        .map_err(Error::from)?;
+
+        tx.commit().await.map_err(Error::from)?;
 
         Ok(())
     }
 
-    fn convert_task_to_av(&self, task: Task) -> Result<AttributeValue> {
-        let mut task_map = HashMap::new();
-        task_map.insert("name".to_string(), AttributeValue::S(task.name));
-        task_map.insert("category".to_string(), AttributeValue::S(task.category));
-        task_map.insert("startTime".to_string(), AttributeValue::S(task.start_time));
-        task_map.insert("endTime".to_string(), AttributeValue::S(task.end_time));
-        task_map.insert("taskId".to_string(), AttributeValue::S(task.task_id));
-        task_map.insert("completed".to_string(), AttributeValue::Bool(false));
-        task_map.insert("createdAt".to_string(), AttributeValue::S(task.created_at));
-        task_map.insert("updatedAt".to_string(), AttributeValue::S(task.updated_at));
+    #[allow(dead_code)]
+    pub async fn update_task_completion(
+        &self,
+        user_id: Uuid,
+        task_id: Uuid,
+        completed: bool,
+    ) -> Result<()> {
+        let mut tx = self.pool.begin().await.map_err(Error::from)?;
 
-        Ok(AttributeValue::M(task_map))
-    }
+        // Get task current state
+        let task_row = sqlx::query(
+            "SELECT schedule_date, completed FROM tasks WHERE id = $1 AND user_id = $2",
+        )
+        .bind(task_id)
+        .bind(user_id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(Error::from)?
+        .ok_or_else(|| Error::not_found(format!("Task {}", task_id)))?;
 
-    pub async fn delete_task(&self, user_id: &str, task_id: &str) -> Result<()> {
-        let task_date = self.get_task_date(user_id, task_id).await?;
+        let was_completed: bool = task_row.get("completed");
 
-        self.db
-            .client
-            .update_item()
-            .table_name(&self.db.table_name)
-            .key("PK", AttributeValue::S(format!("USER#{}", user_id)))
-            .key("SK", AttributeValue::S(format!("TASK#DATE#{}", task_date)))
-            .update_expression("REMOVE tasks[pos]")
-            .condition_expression("tasks[pos].taskId = :task_id")
-            .expression_attribute_values(":task_id", AttributeValue::S(task_id.to_string()))
-            .send()
+        // Only update if status is changing
+        if was_completed != completed {
+            // Update task
+            sqlx::query(
+                "UPDATE tasks SET completed = $1, updated_at = CURRENT_TIMESTAMP
+                 WHERE id = $2",
+            )
+            .bind(completed)
+            .bind(task_id)
+            .execute(&mut *tx)
             .await
-            .map_err(|e| Error::db_query_error(e.to_string()))?;
+            .map_err(Error::from)?;
+
+            // Update schedule
+            sqlx::query(
+                "UPDATE schedules
+                 SET completed_tasks = completed_tasks + CASE WHEN $3 THEN 1 ELSE -1 END
+                 WHERE user_id = $1 AND schedule_date = $2",
+            )
+            .bind(user_id)
+            .bind(task_row.get::<NaiveDate, _>("schedule_date"))
+            .bind(completed)
+            .execute(&mut *tx)
+            .await
+            .map_err(Error::from)?;
+        }
+
+        tx.commit().await.map_err(Error::from)?;
 
         Ok(())
     }
 
-    async fn get_task_date(&self, user_id: &str, task_id: &str) -> Result<String> {
-        let result = self
-            .db
-            .client
-            .query()
-            .table_name(&self.db.table_name)
-            .key_condition_expression("PK = :pk AND begins_with(SK, :sk)")
-            .expression_attribute_values(":pk", AttributeValue::S(format!("USER#{}", user_id)))
-            .expression_attribute_values(":sk", AttributeValue::S("TASK#DATE#".to_string()))
-            .filter_expression("contains(tasks[*].taskId, :task_id)")
-            .expression_attribute_values(":task_id", AttributeValue::S(task_id.to_string()))
-            .send()
-            .await
-            .map_err(|e| Error::db_query_error(e.to_string()))?;
+    fn format_time(date: NaiveDate, time: &str) -> Result<DateTime<Utc>> {
+        // Formats the Date -> time to HH:MM (24-hr UTC)
+        let naive_time = NaiveTime::parse_from_str(time, "%H:%M")
+            .map_err(|_| Error::validation("Time must be in HH:MM format"))?;
 
-        match result.items {
-            Some(items) if !items.is_empty() => {
-                let date = items[0]
-                    .get("date")
-                    .and_then(|v| v.as_s().ok())
-                    .ok_or_else(|| Error::db_parse_error("Missing date"))?;
-                Ok(date.to_string())
-            }
-            _ => Err(Error::not_found("Task", task_id.to_string())),
-        }
+        let naive_datetime = date.and_time(naive_time);
+
+        Ok(DateTime::<Utc>::from_naive_utc_and_offset(
+            naive_datetime,
+            Utc,
+        ))
     }
 }
