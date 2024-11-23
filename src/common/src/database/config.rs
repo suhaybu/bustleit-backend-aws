@@ -1,4 +1,4 @@
-use crate::error_new::{Error, Result};
+use crate::error::{Error, Result};
 use sqlx::postgres::PgConnectOptions;
 
 pub struct DatabaseConfig {

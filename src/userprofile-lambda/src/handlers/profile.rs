@@ -2,7 +2,7 @@ use axum::{extract::Path, Json};
 use uuid::Uuid;
 
 use crate::{db::ProfileDb, models::UserProfile};
-use common::error_new::Result;
+use common::error::Result;
 
 /// GET: /v1/user/profile/:id
 ///

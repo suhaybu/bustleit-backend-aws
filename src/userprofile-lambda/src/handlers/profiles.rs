@@ -2,7 +2,7 @@ use axum::{extract::Query, Json};
 
 use crate::db::ProfileDb;
 use crate::models::{convert_profiles, UserProfile, UserProfilesBatchRequest, UserProfilesQuery};
-use common::error_new::{Error, Result};
+use common::error::{Error, Result};
 
 /// POST: /v1/user/profiles/batch
 /// Retrieves multiple user profiles in a single request

@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use common::{
     database::DatabaseConfig,
-    error_new::{Error, Result},
+    error::{Error, Result},
     models::database as DB,
 };
 
