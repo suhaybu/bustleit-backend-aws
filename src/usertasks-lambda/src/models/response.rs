@@ -1,11 +1,12 @@
-use std::collections::HashMap;
-
-use common::models::dynamodb as DB;
 use serde::Serialize;
+use std::collections::HashMap;
+use uuid::Uuid;
+
+use common::models::database as DB;
 
 #[derive(Serialize)]
 pub struct TasksResponse {
-    pub user_id: String,
+    pub user_id: Uuid,
     pub all_tasks: Vec<Task>,
 }
 
@@ -40,14 +41,14 @@ pub struct Task {
 impl From<DB::Task> for Task {
     fn from(db_task: DB::Task) -> Self {
         Self {
-            task_id: db_task.task_id,
+            task_id: db_task.id.to_string(),
             name: db_task.name,
             category: db_task.category,
-            start_time: db_task.start_time,
-            end_time: db_task.end_time,
+            start_time: db_task.start_time.to_string(),
+            end_time: db_task.end_time.to_string(),
             completed: db_task.completed,
-            created_at: db_task.created_at,
-            updated_at: db_task.updated_at,
+            created_at: db_task.created_at.to_string(),
+            updated_at: db_task.updated_at.to_string(),
         }
     }
 }
@@ -58,22 +59,5 @@ impl ScheduleResponse {
             user_id,
             data: HashMap::new(),
         }
-    }
-
-    // Used for creating structure of every day
-    pub fn add_day(&mut self, date: String, user_tasks: Option<DB::UserTasks>) {
-        let day_tasks = match user_tasks {
-            Some(ut) => DayTasks {
-                total_tasks: ut.total_tasks,
-                completed_tasks: ut.completed_tasks,
-                tasks: ut.tasks.into_iter().map(Task::from).collect(),
-            },
-            None => DayTasks {
-                total_tasks: 0,
-                completed_tasks: 0,
-                tasks: Vec::new(),
-            },
-        };
-        self.data.insert(date, day_tasks);
     }
 }

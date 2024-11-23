@@ -1,8 +1,9 @@
 use serde::Deserialize;
+use uuid::Uuid;
 
 #[derive(Deserialize)]
 pub struct TasksRequest {
-    pub user_ids: Vec<String>,
+    pub user_ids: Vec<Uuid>,
 }
 
 #[derive(Deserialize)]
@@ -14,6 +15,7 @@ pub struct CreateTaskRequest {
     pub date: String,
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize)]
 pub struct UpdateTaskRequest {
     pub name: Option<String>,
