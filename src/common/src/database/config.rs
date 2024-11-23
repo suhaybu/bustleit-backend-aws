@@ -12,18 +12,13 @@ pub struct DatabaseConfig {
 impl DatabaseConfig {
     pub fn new() -> Result<Self> {
         Ok(Self {
-            host: std::env::var("NEON_HOST")
-                .map_err(|_| Error::validation("NEON_HOST must be set"))?,
-            port: std::env::var("NEON_PORT")
-                .map_err(|_| Error::validation("NEON_PORT must be set"))?
-                .parse()
-                .map_err(|_| Error::validation("NEON_PORT must be a valid port number"))?,
+            host: "ep-dry-thunder-a2bjpu75-pooler.eu-central-1.aws.neon.tech".to_string(),
+            port: 5432,
             username: std::env::var("NEON_USER")
                 .map_err(|_| Error::validation("NEON_USER must be set"))?,
             password: std::env::var("NEON_PASSWORD")
                 .map_err(|_| Error::validation("NEON_PASSWORD must be set"))?,
-            database_name: std::env::var("NEON_DB")
-                .map_err(|_| Error::validation("NEON_DB must be set"))?,
+            database_name: "neondb".to_string(),
         })
     }
 
