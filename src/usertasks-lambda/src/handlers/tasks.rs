@@ -58,13 +58,6 @@ pub async fn get_tasks_batch(
     Ok(Json(response))
 }
 
-// DELETE /v1/user/:user_id/tasks/:task_id
-pub async fn delete_task(Path((user_id, task_id)): Path<(Uuid, Uuid)>) -> Result<()> {
-    let db = TasksDb::new().await?;
-    db.delete_task(user_id, task_id).await?;
-    Ok(())
-}
-
 // POST /v1/user/:user_id/tasks - Create task
 pub async fn create_task(
     Path(user_id): Path<Uuid>,
@@ -101,4 +94,11 @@ pub async fn create_task(
         .await?;
 
     Ok(Json(Task::from(task)))
+}
+
+// DELETE /v1/user/:user_id/tasks/:task_id
+pub async fn delete_task(Path((user_id, task_id)): Path<(Uuid, Uuid)>) -> Result<()> {
+    let db = TasksDb::new().await?;
+    db.delete_task(user_id, task_id).await?;
+    Ok(())
 }
