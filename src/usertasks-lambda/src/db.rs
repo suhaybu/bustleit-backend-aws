@@ -1,5 +1,6 @@
 use chrono::{DateTime, NaiveDate, NaiveTime, Utc};
-use sqlx::{PgPool, Row};
+use sqlx::{query_builder, PgPool, Row};
+use tracing_subscriber::fmt::format;
 use uuid::Uuid;
 
 use common::{
@@ -165,12 +166,24 @@ impl TasksDb {
     }
 
     /// Update a user's task
-    pub async fn update_task(&self, user_id: Uuid, task_id: Uuid, completed: bool) -> Result<()> {
+    pub async fn update_task(
+        &self,
+        user_id: Uuid,
+        task_id: Uuid,
+        name: Option<String>,
+        category: Option<String>,
+        start_time: Option<&str>,
+        end_time: Option<&str>,
+        completed: Option<bool>,
+        date: Option<NaiveDate>,
+    ) -> Result<DB::Task> {
         let mut tx = self.pool.begin().await.map_err(Error::from)?;
 
         // Get task current state
-        let task_row = sqlx::query(
-            "SELECT schedule_date, completed FROM tasks WHERE id = $1 AND user_id = $2",
+        let current_task = sqlx::query(
+            "SELECT schedule_date, completed, start_time, end_time
+             FROM tasks
+             WHERE id = $1 AND user_id = $2",
         )
         .bind(task_id)
         .bind(user_id)
@@ -179,38 +192,154 @@ impl TasksDb {
         .map_err(Error::from)?
         .ok_or_else(|| Error::not_found(format!("Task {}", task_id)))?;
 
-        let was_completed: bool = task_row.get("completed");
+        let current_date: NaiveDate = current_task.get("schedule_date");
+        let current_completed: bool = current_task.get("completed");
 
-        // Only update if status is changing
-        if was_completed != completed {
-            // Update task
-            sqlx::query(
-                "UPDATE tasks SET completed = $1, updated_at = CURRENT_TIMESTAMP
-                 WHERE id = $2",
-            )
-            .bind(completed)
-            .bind(task_id)
-            .execute(&mut *tx)
-            .await
-            .map_err(Error::from)?;
+        // Now we handle each Optional data type
 
-            // Update schedule
-            sqlx::query(
-                "UPDATE schedules
-                 SET completed_tasks = completed_tasks + CASE WHEN $3 THEN 1 ELSE -1 END
-                 WHERE user_id = $1 AND schedule_date = $2",
-            )
-            .bind(user_id)
-            .bind(task_row.get::<NaiveDate, _>("schedule_date"))
-            .bind(completed)
-            .execute(&mut *tx)
-            .await
-            .map_err(Error::from)?;
+        if let Some(new_data) = date {
+            // If new date is different than old date, we update new & old schedules
+            if new_data != current_date {
+                // Update current (old) schedule counter
+                sqlx::query(
+                    "UPDATE schedules
+                     SET total_tasks = total_tasks - 1,
+                         completed_tasks = completed_tasks - CASE WHEN $3 THEN 1 ELSE 0 END
+                     WHERE user_id = $1 AND schedule_date = $2",
+                )
+                .bind(user_id) // $1
+                .bind(current_date) // $2
+                .bind(current_completed) // $3
+                .execute(&mut *tx)
+                .await
+                .map_err(Error::from)?;
+
+                // Updates new schedule
+                sqlx::query(
+                    "INSERT INTO schedules (user_id, schedule_date, total_tasks, completed_tasks)
+                     VALUES ($1, $2, 1, $3)
+                     ON CONFLICT (user_id, schedule_date)
+                     DO UPDATE SET
+                        total_tasks = schedules.total_tasks + 1,
+                        completed_tasks = schedules.completed_tasks + $3",
+                )
+                .bind(user_id)
+                .bind(new_data)
+                .bind(current_completed)
+                .execute(&mut *tx)
+                .await
+                .map_err(Error::from)?;
+            }
         }
 
+        if let Some(new_completed) = completed {
+            if new_completed != current_completed {
+                let schedule_date = date.unwrap_or(current_date); // Use new date if provided
+                sqlx::query(
+                    "UPDATE schedules
+                     SET completed_tasks = completed_tasks + CASE WHEN #3 THEN 1 ELSE -1 END
+                     WHERE user_id = $1 AND schedule_date = $2",
+                )
+                .bind(user_id)
+                .bind(schedule_date)
+                .bind(new_completed)
+                .execute(&mut *tx)
+                .await
+                .map_err(Error::from)?;
+            }
+        }
+
+        // If start time is specified, use that
+        let start_time = if let Some(time) = start_time {
+            Some(Self::format_time(date.unwrap_or(current_date), time)?)
+        } else {
+            None
+        };
+
+        // If end time is specified, use that
+        let end_time = if let Some(time) = end_time {
+            Some(Self::format_time(date.unwrap_or(current_date), time)?)
+        } else {
+            None
+        };
+
+        // Validated that end time is later than start time
+        if let (Some(start), Some(end)) = (start_time.as_ref(), end_time.as_ref()) {
+            if end <= start {
+                return Err(Error::validation("End time must be after start time"));
+            }
+        }
+
+        // Dynamically build our query based on request
+        let mut query = String::from("UPDATE tasks SET updated_at = CURRENT_TIMESTAMP");
+        let mut param_count: i8 = 1;
+        let mut params = Vec::new();
+
+        if let Some(val) = name {
+            query.push_str(&format!(", name = ${}", param_count));
+            params.push(val);
+            param_count += 1;
+        }
+        if let Some(val) = category {
+            query.push_str(&format!(", category = ${}", param_count));
+            params.push(val);
+            param_count += 1;
+        }
+        if let Some(val) = start_time {
+            query.push_str(&format!(", start_time = ${}", param_count));
+            params.push(val.to_string());
+            param_count += 1;
+        }
+        if let Some(val) = end_time {
+            query.push_str(&format!(", end_time = ${}", param_count));
+            params.push(val.to_string());
+            param_count += 1;
+        }
+        if let Some(val) = completed {
+            query.push_str(&format!(", completed = ${}", param_count));
+            params.push(val.to_string());
+            param_count += 1;
+        }
+        if let Some(val) = date {
+            query.push_str(&format!(", schedule_date = ${}", param_count));
+            params.push(val.to_string());
+            param_count += 1;
+        }
+
+        query.push_str(&format!(
+            " WHERE id = ${} AND user_ud = ${} RETURNING *",
+            param_count,
+            param_count + 1
+        ));
+
+        // Load it all up into the Query Builder
+        let mut query_builder = sqlx::query(&query);
+        for param in params {
+            query_builder = query_builder.bind(param);
+        }
+        query_builder = query_builder.bind(task_id).bind(user_id);
+
+        let updated = query_builder
+            .fetch_one(&mut *tx)
+            .await
+            .map_err(Error::from)?;
+
+        // Commits the change
         tx.commit().await.map_err(Error::from)?;
 
-        Ok(())
+        // Return the new updated version of the Task
+        Ok(DB::Task {
+            id: updated.get("id"),
+            user_id: updated.get("user_id"),
+            schedule_date: updated.get("schedule_date"),
+            name: updated.get("name"),
+            category: updated.get("category"),
+            start_time: updated.get("start_time"),
+            end_time: updated.get("end_time"),
+            completed: updated.get("completed"),
+            created_at: updated.get("created_at"),
+            updated_at: updated.get("updated_at"),
+        })
     }
 
     /// Delete a user's task
