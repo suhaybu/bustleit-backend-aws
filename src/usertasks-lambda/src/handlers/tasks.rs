@@ -96,6 +96,11 @@ pub async fn create_task(
     Ok(Json(Task::from(task)))
 }
 
+// PATCH /v1/user/:user_id/tasks/:task_id
+pub async fn update_task(Path((user_id, task_id)): Path<(Uuid, Uuid)>) -> Result<()> {
+    todo!()
+}
+
 // DELETE /v1/user/:user_id/tasks/:task_id
 pub async fn delete_task(Path((user_id, task_id)): Path<(Uuid, Uuid)>) -> Result<()> {
     let db = TasksDb::new().await?;
