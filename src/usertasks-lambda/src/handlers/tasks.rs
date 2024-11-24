@@ -3,6 +3,7 @@ use chrono::{NaiveDate, NaiveTime};
 use uuid::Uuid;
 
 use crate::db::TasksDb;
+use crate::models::request::UpdateTaskRequest;
 use crate::models::{
     query::DATE_FMT,
     request::{CreateTaskRequest, TasksRequest},
@@ -97,8 +98,35 @@ pub async fn create_task(
 }
 
 // PATCH /v1/user/:user_id/tasks/:task_id
-pub async fn update_task(Path((user_id, task_id)): Path<(Uuid, Uuid)>) -> Result<()> {
-    todo!()
+pub async fn update_task(
+    Path((user_id, task_id)): Path<(Uuid, Uuid)>,
+    Json(payload): Json<UpdateTaskRequest>,
+) -> Result<Json<Task>> {
+    if payload.is_empty() {
+        return Err(Error::validation("No updates provided"));
+    }
+
+    payload.validate_all()?;
+
+    let date = payload.date.as_deref().map(|date_str| {
+        NaiveDate::parse_from_str(date_str, DATE_FMT).expect("Date format already validated")
+    });
+
+    let db = TasksDb::new().await?;
+    let task = db
+        .update_task(
+            user_id,
+            task_id,
+            payload.name,
+            payload.category,
+            payload.start_time.as_deref(),
+            payload.end_time.as_deref(),
+            payload.completed,
+            date,
+        )
+        .await?;
+
+    Ok(Json(Task::from(task)))
 }
 
 // DELETE /v1/user/:user_id/tasks/:task_id
