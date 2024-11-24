@@ -33,7 +33,6 @@ async fn main() -> Result<(), Error> {
         .route("/v1/user/:user_id/tasks", post(create_task))
         .route("/v1/user/:user_id/tasks/:task_id", delete(delete_task))
         .layer(middleware::from_fn(auth));
-    // .route("/v1/users/:user_id/schedule/month/:month", get(todo!()));
 
     run(app).await
 }
