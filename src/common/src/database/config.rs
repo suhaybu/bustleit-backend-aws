@@ -30,5 +30,7 @@ impl DatabaseConfig {
             .password(&self.password)
             .database(&self.database_name)
             .ssl_mode(sqlx::postgres::PgSslMode::Require)
+            .statement_cache_capacity(100)
+            .application_name("bustleit-lambda")
     }
 }
