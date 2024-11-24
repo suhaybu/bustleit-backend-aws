@@ -64,7 +64,7 @@ Resources:
     Properties:
       CodeUri: src/usertasks-lambda
       Handler: bootstrap
-      Timeout: 900
+      Timeout: 900 # 15 minutes
       Role: !GetAtt UserTasksFunctionRole.Arn
       Events:
         GetAllTasks:
@@ -87,6 +87,11 @@ Resources:
           Properties:
             Path: /v1/user/{user_id}/tasks
             Method: post
+        UpdateTask:
+          Type: Api
+          Properties:
+            Path: /v1/user/{user_id}/tasks/{task_id}
+            Method: patch
         DeleteTask:
           Type: Api
           Properties:
