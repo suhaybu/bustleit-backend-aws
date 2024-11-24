@@ -1,9 +1,9 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::types::Uuid;
+use sqlx::{prelude::FromRow, types::Uuid};
 
 // This is for internal use to represent how it's stored in DB
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct Task {
     pub id: Uuid,
     pub user_id: Uuid,
