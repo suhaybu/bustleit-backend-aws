@@ -37,7 +37,7 @@ pub struct Task {
     pub updated_at: String,
 }
 
-// Converts DynamoDB Task format to Response format (move)
+// Converts DB::Task format to Response format (move)
 impl From<DB::Task> for Task {
     fn from(db_task: DB::Task) -> Self {
         Self {

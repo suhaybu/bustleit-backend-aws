@@ -36,7 +36,7 @@ pub struct PersonalityScores {
     pub turbulent: f32,
 }
 
-// Convert from DynamoDB UserProfileDB to UserProfile
+// Convert from DB::Profile to UserProfile
 impl From<&DB::Profile> for UserProfile {
     fn from(db_profile: &DB::Profile) -> Self {
         let scores = db_profile.get_typed_scores().unwrap_or_default();
@@ -60,7 +60,7 @@ impl From<&DB::Profile> for UserProfile {
     }
 }
 
-// Helper function to convert a slice of DB UserProfiles
+// Helper function to convert a slice of DB::Profile to UserProfiles
 pub fn convert_profiles(profiles_db: Vec<DB::Profile>) -> Vec<UserProfile> {
     profiles_db.iter().map(UserProfile::from).collect()
 }
