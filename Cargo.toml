@@ -8,8 +8,6 @@ offline = true
 [workspace.dependencies]
 axum = "0.7"
 aws-config = "1.5"
-aws-sdk-dynamodb = "1.52"
-
 lambda_http = "0.13"
 lambda_runtime = "0.13"
 
