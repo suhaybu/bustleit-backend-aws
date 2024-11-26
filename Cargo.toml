@@ -1,5 +1,5 @@
 [workspace]
-members = ["src/common", "src/recommend-lambda", "src/userprofile-lambda", "src/usertasks-lambda"]
+members = ["src/common", "src/userprofile-lambda", "src/usertasks-lambda"]
 resolver = "2"
 
 [workspace.metadata.sqlx]
