@@ -32,7 +32,10 @@ impl TasksDb {
         .await
         .map_err(Error::from)?;
 
-        let tasks = rows.into_iter().map(Self::map_task_row).collect();
+        let tasks = rows
+            .into_iter()
+            .map(Self::map_task_row)
+            .collect::<Result<Vec<_>>>()?;
 
         Ok(tasks)
     }
@@ -51,7 +54,10 @@ impl TasksDb {
         .await
         .map_err(Error::from)?;
 
-        let tasks = rows.into_iter().map(Self::map_task_row).collect();
+        let tasks = rows
+            .into_iter()
+            .map(Self::map_task_row)
+            .collect::<Result<Vec<_>>>()?;
 
         Ok(tasks)
     }
@@ -117,7 +123,7 @@ impl TasksDb {
         .fetch_one(&mut *tx)
         .await
         .map_err(Error::from)
-        .map(Self::map_task_row)?;
+        .map(Self::map_task_row)??;
 
         tx.commit().await.map_err(Error::from)?;
 
@@ -354,7 +360,10 @@ impl TasksDb {
         .await
         .map_err(Error::from)?;
 
-        let tasks = task_rows.into_iter().map(Self::map_task_row).collect();
+        let tasks = task_rows
+            .into_iter()
+            .map(Self::map_task_row)
+            .collect::<Result<Vec<_>>>()?;
 
         Ok((schedule, tasks))
     }
@@ -407,7 +416,10 @@ impl TasksDb {
         .await
         .map_err(Error::from)?;
 
-        let tasks = task_rows.into_iter().map(Self::map_task_row).collect();
+        let tasks = task_rows
+            .into_iter()
+            .map(Self::map_task_row)
+            .collect::<Result<Vec<_>>>()?;
 
         Ok((schedules, tasks))
     }
@@ -425,8 +437,8 @@ impl TasksDb {
         ))
     }
 
-    fn map_task_row(row: PgRow) -> DB::Task {
-        DB::Task {
+    fn map_task_row(row: PgRow) -> Result<DB::Task> {
+        Ok(DB::Task {
             id: row.get("id"),
             user_id: row.get("user_id"),
             schedule_date: row.get("schedule_date"),
@@ -437,6 +449,6 @@ impl TasksDb {
             completed: row.get("completed"),
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
-        }
+        })
     }
 }

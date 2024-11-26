@@ -34,7 +34,9 @@ impl ProfileDb {
             e => Error::Database(e),
         })?;
 
-        Ok(Self::map_profile_row(row))
+        let profile = Self::map_profile_row(row)?;
+
+        Ok(profile)
     }
 
     // Get multiple user profiles
@@ -49,7 +51,10 @@ impl ProfileDb {
         .await
         .map_err(|e| Error::Database(e))?;
 
-        let profiles = rows.into_iter().map(Self::map_profile_row).collect();
+        let profiles = rows
+            .into_iter()
+            .map(Self::map_profile_row)
+            .collect::<Result<Vec<_>>>()?;
 
         Ok(profiles)
     }
@@ -69,7 +74,10 @@ impl ProfileDb {
             return Err(Error::not_found(cluster.to_string()));
         }
 
-        let profiles = rows.into_iter().map(Self::map_profile_row).collect();
+        let profiles = rows
+            .into_iter()
+            .map(Self::map_profile_row)
+            .collect::<Result<Vec<_>>>()?;
 
         Ok(profiles)
     }
@@ -87,19 +95,22 @@ impl ProfileDb {
             return Err(Error::not_found("No profiles found".to_string()));
         }
 
-        let profiles = rows.into_iter().map(Self::map_profile_row).collect();
+        let profiles = rows
+            .into_iter()
+            .map(Self::map_profile_row)
+            .collect::<Result<Vec<_>>>()?;
 
         Ok(profiles)
     }
 
-    fn map_profile_row(row: PgRow) -> DB::Profile {
-        DB::Profile {
+    fn map_profile_row(row: PgRow) -> Result<DB::Profile> {
+        Ok(DB::Profile {
             user_id: row.get("user_id"),
             cluster: row.get("cluster"),
             preferences: row.get("preferences"),
             personality_scores: row.get("personality_scores"),
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
-        }
+        })
     }
 }
