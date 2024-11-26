@@ -4,6 +4,9 @@ use std::env::set_var;
 
 use common::services::mw_auth::auth;
 
+mod handlers;
+mod models;
+
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     tracing_subscriber::fmt()
