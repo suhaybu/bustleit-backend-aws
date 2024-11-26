@@ -13,7 +13,7 @@ use common::error::Result;
 pub async fn get_profile(Path(user_id): Path<Uuid>) -> Result<Json<UserProfile>> {
     let db = ProfileDb::new().await?;
 
-    let profile_db = db.get_profile(&user_id).await?;
+    let profile_db = db.get_profile(user_id).await?;
     let profile = UserProfile::from(&profile_db);
 
     Ok(Json(profile))

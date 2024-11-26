@@ -87,8 +87,8 @@ pub async fn create_task(
         .add_task(
             user_id,
             date,
-            payload.name,
-            payload.category,
+            &payload.name,
+            &payload.category,
             &payload.start_time,
             &payload.end_time,
         )
@@ -117,8 +117,8 @@ pub async fn update_task(
         .update_task(
             user_id,
             task_id,
-            payload.name,
-            payload.category,
+            payload.name.as_deref(),
+            payload.category.as_deref(),
             payload.start_time.as_deref(),
             payload.end_time.as_deref(),
             payload.completed,

@@ -1,5 +1,5 @@
 use chrono::{DateTime, NaiveDate, NaiveTime, Utc};
-use sqlx::{PgPool, Row};
+use sqlx::{postgres::PgRow, PgPool, Row};
 use uuid::Uuid;
 
 use common::{
@@ -32,21 +32,7 @@ impl TasksDb {
         .await
         .map_err(Error::from)?;
 
-        let tasks = rows
-            .into_iter()
-            .map(|row| DB::Task {
-                id: row.get("id"),
-                user_id: row.get("user_id"),
-                schedule_date: row.get("schedule_date"),
-                name: row.get("name"),
-                category: row.get("category"),
-                start_time: row.get("start_time"),
-                end_time: row.get("end_time"),
-                completed: row.get("completed"),
-                created_at: row.get("created_at"),
-                updated_at: row.get("updated_at"),
-            })
-            .collect();
+        let tasks = rows.into_iter().map(Self::map_task_row).collect();
 
         Ok(tasks)
     }
@@ -65,21 +51,7 @@ impl TasksDb {
         .await
         .map_err(Error::from)?;
 
-        let tasks = rows
-            .into_iter()
-            .map(|row| DB::Task {
-                id: row.get("id"),
-                user_id: row.get("user_id"),
-                schedule_date: row.get("schedule_date"),
-                name: row.get("name"),
-                category: row.get("category"),
-                start_time: row.get("start_time"),
-                end_time: row.get("end_time"),
-                completed: row.get("completed"),
-                created_at: row.get("created_at"),
-                updated_at: row.get("updated_at"),
-            })
-            .collect();
+        let tasks = rows.into_iter().map(Self::map_task_row).collect();
 
         Ok(tasks)
     }
@@ -105,8 +77,8 @@ impl TasksDb {
         &self,
         user_id: Uuid,
         date: NaiveDate,
-        name: String,
-        category: String,
+        name: &str,
+        category: &str,
         start_time: &str,
         end_time: &str,
     ) -> Result<DB::Task> {
@@ -129,7 +101,7 @@ impl TasksDb {
         .map_err(Error::from)?;
 
         // Insert task
-        let task_row = sqlx::query(
+        let task = sqlx::query(
             "INSERT INTO tasks
              (user_id, schedule_date, name, category, start_time, end_time)
              VALUES ($1, $2, $3, $4, $5, $6)
@@ -144,20 +116,8 @@ impl TasksDb {
         .bind(end_time)
         .fetch_one(&mut *tx)
         .await
-        .map_err(Error::from)?;
-
-        let task = DB::Task {
-            id: task_row.get("id"),
-            user_id: task_row.get("user_id"),
-            schedule_date: task_row.get("schedule_date"),
-            name: task_row.get("name"),
-            category: task_row.get("category"),
-            start_time: task_row.get("start_time"),
-            end_time: task_row.get("end_time"),
-            completed: task_row.get("completed"),
-            created_at: task_row.get("created_at"),
-            updated_at: task_row.get("updated_at"),
-        };
+        .map_err(Error::from)
+        .map(Self::map_task_row)?;
 
         tx.commit().await.map_err(Error::from)?;
 
@@ -169,8 +129,8 @@ impl TasksDb {
         &self,
         user_id: Uuid,
         task_id: Uuid,
-        name: Option<String>,
-        category: Option<String>,
+        name: Option<&str>,
+        category: Option<&str>,
         start_time: Option<&str>,
         end_time: Option<&str>,
         completed: Option<bool>,
@@ -394,21 +354,7 @@ impl TasksDb {
         .await
         .map_err(Error::from)?;
 
-        let tasks = task_rows
-            .into_iter()
-            .map(|row| DB::Task {
-                id: row.get("id"),
-                user_id: row.get("user_id"),
-                schedule_date: row.get("schedule_date"),
-                name: row.get("name"),
-                category: row.get("category"),
-                start_time: row.get("start_time"),
-                end_time: row.get("end_time"),
-                completed: row.get("completed"),
-                created_at: row.get("created_at"),
-                updated_at: row.get("updated_at"),
-            })
-            .collect();
+        let tasks = task_rows.into_iter().map(Self::map_task_row).collect();
 
         Ok((schedule, tasks))
     }
@@ -461,21 +407,7 @@ impl TasksDb {
         .await
         .map_err(Error::from)?;
 
-        let tasks = task_rows
-            .into_iter()
-            .map(|row| DB::Task {
-                id: row.get("id"),
-                user_id: row.get("user_id"),
-                schedule_date: row.get("schedule_date"),
-                name: row.get("name"),
-                category: row.get("category"),
-                start_time: row.get("start_time"),
-                end_time: row.get("end_time"),
-                completed: row.get("completed"),
-                created_at: row.get("created_at"),
-                updated_at: row.get("updated_at"),
-            })
-            .collect();
+        let tasks = task_rows.into_iter().map(Self::map_task_row).collect();
 
         Ok((schedules, tasks))
     }
@@ -491,5 +423,20 @@ impl TasksDb {
             naive_datetime,
             Utc,
         ))
+    }
+
+    fn map_task_row(row: PgRow) -> DB::Task {
+        DB::Task {
+            id: row.get("id"),
+            user_id: row.get("user_id"),
+            schedule_date: row.get("schedule_date"),
+            name: row.get("name"),
+            category: row.get("category"),
+            start_time: row.get("start_time"),
+            end_time: row.get("end_time"),
+            completed: row.get("completed"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        }
     }
 }

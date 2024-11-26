@@ -1,4 +1,4 @@
-use sqlx::{PgPool, Row};
+use sqlx::{postgres::PgRow, PgPool, Row};
 use uuid::Uuid;
 
 use common::{
@@ -20,7 +20,7 @@ impl ProfileDb {
     }
 
     // Get single user profile
-    pub async fn get_profile(&self, user_id: &Uuid) -> Result<DB::Profile> {
+    pub async fn get_profile(&self, user_id: Uuid) -> Result<DB::Profile> {
         let row = sqlx::query(
             "SELECT user_id, cluster, preferences, personality_scores, created_at, updated_at
                  FROM profiles
@@ -34,14 +34,7 @@ impl ProfileDb {
             e => Error::Database(e),
         })?;
 
-        Ok(DB::Profile {
-            user_id: row.get("user_id"),
-            cluster: row.get("cluster"),
-            preferences: row.get("preferences"),
-            personality_scores: row.get("personality_scores"),
-            created_at: row.get("created_at"),
-            updated_at: row.get("updated_at"),
-        })
+        Ok(Self::map_profile_row(row))
     }
 
     // Get multiple user profiles
@@ -56,17 +49,7 @@ impl ProfileDb {
         .await
         .map_err(|e| Error::Database(e))?;
 
-        let profiles = rows
-            .into_iter()
-            .map(|row| DB::Profile {
-                user_id: row.get("user_id"),
-                cluster: row.get("cluster"),
-                preferences: row.get("preferences"),
-                personality_scores: row.get("personality_scores"),
-                created_at: row.get("created_at"),
-                updated_at: row.get("updated_at"),
-            })
-            .collect();
+        let profiles = rows.into_iter().map(Self::map_profile_row).collect();
 
         Ok(profiles)
     }
@@ -86,17 +69,7 @@ impl ProfileDb {
             return Err(Error::not_found(cluster.to_string()));
         }
 
-        let profiles = rows
-            .into_iter()
-            .map(|row| DB::Profile {
-                user_id: row.get("user_id"),
-                cluster: row.get("cluster"),
-                preferences: row.get("preferences"),
-                personality_scores: row.get("personality_scores"),
-                created_at: row.get("created_at"),
-                updated_at: row.get("updated_at"),
-            })
-            .collect();
+        let profiles = rows.into_iter().map(Self::map_profile_row).collect();
 
         Ok(profiles)
     }
@@ -114,18 +87,19 @@ impl ProfileDb {
             return Err(Error::not_found("No profiles found".to_string()));
         }
 
-        let profiles = rows
-            .into_iter()
-            .map(|row| DB::Profile {
-                user_id: row.get("user_id"),
-                cluster: row.get("cluster"),
-                preferences: row.get("preferences"),
-                personality_scores: row.get("personality_scores"),
-                created_at: row.get("created_at"),
-                updated_at: row.get("updated_at"),
-            })
-            .collect();
+        let profiles = rows.into_iter().map(Self::map_profile_row).collect();
 
         Ok(profiles)
+    }
+
+    fn map_profile_row(row: PgRow) -> DB::Profile {
+        DB::Profile {
+            user_id: row.get("user_id"),
+            cluster: row.get("cluster"),
+            preferences: row.get("preferences"),
+            personality_scores: row.get("personality_scores"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+        }
     }
 }
