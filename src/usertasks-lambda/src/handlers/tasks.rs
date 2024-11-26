@@ -64,6 +64,9 @@ pub async fn create_task(
     Path(user_id): Path<Uuid>,
     Json(payload): Json<CreateTaskRequest>,
 ) -> Result<Json<Task>> {
+    // Validates payload's data structure
+    payload.validate_all()?;
+
     // Parse date
     let date = NaiveDate::parse_from_str(&payload.date, DATE_FMT)
         .map_err(|_| Error::validation("Invalid date format"))?;

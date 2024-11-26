@@ -11,12 +11,29 @@ pub struct TasksRequest {
     pub user_ids: Vec<Uuid>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 pub struct CreateTaskRequest {
+    #[validate(length(
+        min = 1,
+        max = 255,
+        message = "Task name must be between 1 and 255 characters"
+    ))]
     pub name: String,
+
+    #[validate(length(
+        min = 1,
+        max = 100,
+        message = "Category must be between 1 and 100 characters"
+    ))]
     pub category: String,
+
+    #[validate(custom(function = "validate_time_format"))]
     pub start_time: String,
+
+    #[validate(custom(function = "validate_time_format"))]
     pub end_time: String,
+
+    #[validate(custom(function = "validate_date_format"))]
     pub date: String,
 }
 
@@ -65,6 +82,29 @@ fn validate_date_format(date: &str) -> std::result::Result<(), ValidationError> 
     chrono::NaiveDate::parse_from_str(date, DATE_FMT)
         .map_err(|_| ValidationError::new("Invalid date format. Expected YYYY-MM-DD"))?;
     Ok(())
+}
+
+impl CreateTaskRequest {
+    /// Validates the entire request including inter-field validations
+    pub fn validate_all(&self) -> Result<()> {
+        // Run validator derive validations
+        if let Err(validation_errors) = self.validate() {
+            return Err(Error::validation(validation_errors.to_string()));
+        }
+
+        // Parse and validate times
+        let start_time = NaiveTime::parse_from_str(&self.start_time, "%H:%M")
+            .expect("Time format already validated");
+        let end_time = NaiveTime::parse_from_str(&self.end_time, "%H:%M")
+            .expect("Time format already validated");
+
+        // Check time order
+        if end_time <= start_time {
+            return Err(Error::validation("End time must be after start time"));
+        }
+
+        Ok(())
+    }
 }
 
 impl UpdateTaskRequest {
