@@ -23,7 +23,7 @@ impl ProfileDb {
 
     // TODO: Create a user profile
     pub async fn create_user(&self, payload: RegisterUserPayload) -> Result<()> {
-        info!("Recieved payload: \n{:?}", payload);
+        info!("Recieved payload: \n{:#?}", payload);
         Ok(())
     }
 
