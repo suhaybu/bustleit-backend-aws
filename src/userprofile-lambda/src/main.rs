@@ -6,7 +6,7 @@ use axum::{
 use lambda_http::{run, Error};
 use std::env::set_var;
 
-use common::services::mw_auth::auth;
+use common::services::{cors::cors_middleware, mw_auth::auth};
 use handlers::{profile, profiles, recommend, register};
 
 mod db;
@@ -29,6 +29,7 @@ async fn main() -> Result<(), Error> {
         .route("/v1/user/profiles", get(profiles::get_profiles))
         .route("/v1/user/profiles/batch", post(profiles::get_batch))
         .route("/v1/recommend/:user_id", get(recommend::get_recommendation))
+        .layer(middleware::from_fn(cors_middleware))
         .layer(middleware::from_fn(auth));
 
     run(app).await

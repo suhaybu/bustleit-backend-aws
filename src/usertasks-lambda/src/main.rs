@@ -6,7 +6,7 @@ use axum::{
 use lambda_http::{run, Error};
 use std::env::set_var;
 
-use common::services::mw_auth::auth;
+use common::services::{cors::cors_middleware, mw_auth::auth};
 use handlers::schedule::get_user_schedule;
 use handlers::tasks::{create_task, delete_task, get_all_tasks, get_tasks_batch, update_task};
 
@@ -31,6 +31,7 @@ async fn main() -> Result<(), Error> {
         .route("/v1/user/:user_id/tasks", post(create_task))
         .route("/v1/user/:user_id/tasks/:task_id", patch(update_task))
         .route("/v1/user/:user_id/tasks/:task_id", delete(delete_task))
+        .layer(middleware::from_fn(cors_middleware))
         .layer(middleware::from_fn(auth));
 
     run(app).await
