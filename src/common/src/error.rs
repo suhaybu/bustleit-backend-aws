@@ -18,6 +18,9 @@ pub enum Error {
 
     #[error("{0} not found")]
     NotFound(String),
+
+    #[error("Internal Server error: {0}")]
+    InternalServerError(String),
 }
 
 impl Error {
@@ -42,6 +45,7 @@ impl IntoResponse for Error {
             }
             Error::Validation(msg) => (StatusCode::BAD_REQUEST, msg.clone()),
             Error::NotFound(msg) => (StatusCode::NOT_FOUND, msg.clone()),
+            Error::InternalServerError(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg.clone()),
         };
 
         let body = Json(json!({
