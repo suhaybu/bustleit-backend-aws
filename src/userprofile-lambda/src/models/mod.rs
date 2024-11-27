@@ -1,3 +1,4 @@
 mod profiles;
+mod register;
 
 pub use profiles::{convert_profiles, UserProfile, UserProfilesBatchRequest, UserProfilesQuery};
