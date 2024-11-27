@@ -41,6 +41,11 @@ Resources:
       Handler: bootstrap
       Role: !GetAtt UserProfileFunctionRole.Arn
       Events:
+        SignupUser:
+          Type: Api
+          Properties:
+            Path: /v1/signup
+            Method: post
         GetUserProfile:
           Type: Api
           Properties:
