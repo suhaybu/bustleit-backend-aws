@@ -7,7 +7,7 @@ use lambda_http::{run, Error};
 use std::env::set_var;
 
 use common::services::mw_auth::auth;
-use handlers::{profile, profiles, register};
+use handlers::{profile, profiles, recommend, register};
 
 mod db;
 mod handlers;
@@ -28,6 +28,7 @@ async fn main() -> Result<(), Error> {
         .route("/v1/user/profile/:id", get(profile::get_profile))
         .route("/v1/user/profiles", get(profiles::get_profiles))
         .route("/v1/user/profiles/batch", post(profiles::get_batch))
+        .route("/v1/recommend/:user_id", get(recommend::get_recommendation))
         .layer(middleware::from_fn(auth));
 
     run(app).await
