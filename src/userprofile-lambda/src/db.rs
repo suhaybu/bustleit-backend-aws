@@ -1,6 +1,8 @@
 use sqlx::{postgres::PgRow, PgPool, Row};
+use tracing::info;
 use uuid::Uuid;
 
+use crate::models::RegisterUserPayload;
 use common::{
     database::DatabaseConfig,
     error::{Error, Result},
@@ -17,6 +19,12 @@ impl ProfileDb {
         let pool = common::database::create_pool(config).await?;
 
         Ok(Self { pool })
+    }
+
+    // TODO: Create a user profile
+    pub async fn create_user(&self, payload: RegisterUserPayload) -> Result<()> {
+        info!("Recieved payload: \n{:?}", payload);
+        Ok(())
     }
 
     // Get single user profile
