@@ -1,5 +1,5 @@
 use axum::{extract::Path, Json};
-use sqlx::types::chrono::{self, Utc};
+use sqlx::types::chrono::{self, NaiveTime, Utc};
 use uuid::Uuid;
 
 use crate::{
@@ -20,20 +20,15 @@ pub async fn get_recommendation(Path(user_id): Path<Uuid>) -> Result<Json<Respon
     let profile_data = db.get_profile(user_id).await?;
 
     // TEMP: Hardcoded missing User Data for now
-    let work_start_time = chrono::DateTime::parse_from_str("09:00 +0000", "%H:%M %z")
-        .unwrap()
-        .with_timezone(&Utc);
-    let work_end_time = chrono::DateTime::parse_from_str("16:30 +0000", "%H:%M %z")
-        .unwrap()
-        .with_timezone(&Utc);
+    let work_start_time = NaiveTime::parse_from_str("09:00", "%H:%M").unwrap();
+    let work_end_time = NaiveTime::parse_from_str("16:30", "%H:%M").unwrap();
 
-    let sleep_time = chrono::DateTime::parse_from_str("22:00 +0000", "%H:%M %z")
-        .unwrap()
-        .with_timezone(&Utc);
+    let sleep_time = NaiveTime::parse_from_str("22:00", "%H:%M").unwrap();
 
     let request_body = RequestRecommendDaily::new(
         user_id,
         profile_data.get_typed_scores().unwrap_or_default(),
+        profile_data.preferences,
         profile_data.cluster,
         work_start_time,
         work_end_time,
@@ -46,6 +41,13 @@ pub async fn get_recommendation(Path(user_id): Path<Uuid>) -> Result<Json<Respon
         .send()
         .await
         .map_err(|e| Error::validation(format!("API request failed: {}", e)))?;
+
+    if !recommendation.status().is_success() {
+        return Err(Error::InternalServerError(format!(
+            "External API error: Status {}",
+            recommendation.status()
+        )));
+    }
 
     let response = recommendation
         .json::<ResponseRecommendDaily>()
