@@ -1,5 +1,5 @@
 use axum::{extract::Path, Json};
-use sqlx::types::chrono::{self, NaiveTime, Utc};
+use sqlx::types::chrono::NaiveTime;
 use uuid::Uuid;
 
 use crate::{
