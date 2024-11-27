@@ -16,10 +16,13 @@ Parameters:
     Type: String
     Description: Neon database password
     NoEcho: true
+  ExternalApi:
+    Type: String
+    Description: External API endpoint
 
 Globals:
   Function:
-    Timeout: 5
+    Timeout: 10
     MemorySize: 128
     Runtime: provided.al2023
     Architectures:
@@ -30,8 +33,46 @@ Globals:
         TEST_API_TOKEN: !Ref TestApiToken
         NEON_USER: !Ref NeonUser
         NEON_PASSWORD: !Ref NeonPassword
+        EXTERNAL_API: !Ref ExternalApi
 
 Resources:
+  UserProfileFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  UserTasksFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  BustleItApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Cors:
+        AllowMethods: "'GET, POST, PUT, DELETE, PATCH, OPTIONS'"
+        AllowHeaders: "'*'"
+        AllowOrigin: "'*'"
+        MaxAge: "'86400'"
+        AllowCredentials: false
+
   UserProfileFunction:
     Type: AWS::Serverless::Function
     Metadata:
@@ -46,21 +87,31 @@ Resources:
           Properties:
             Path: /v1/signup
             Method: post
+            RestApiId: !Ref BustleItApi
         GetUserProfile:
           Type: Api
           Properties:
             Path: /v1/user/profile/{id}
             Method: get
+            RestApiId: !Ref BustleItApi
         GetUserProfiles:
           Type: Api
           Properties:
             Path: /v1/user/profiles
             Method: get
+            RestApiId: !Ref BustleItApi
         GetUserProfilesBatch:
           Type: Api
           Properties:
             Path: /v1/user/profiles/batch
             Method: post
+            RestApiId: !Ref BustleItApi
+        GetRecommendation:
+          Type: Api
+          Properties:
+            Path: /v1/recommend/{user_id}
+            Method: get
+            RestApiId: !Ref BustleItApi
 
   UserTasksFunction:
     Type: AWS::Serverless::Function
@@ -69,7 +120,7 @@ Resources:
     Properties:
       CodeUri: src/usertasks-lambda
       Handler: bootstrap
-      Timeout: 900 # 15 minutes
+      Timeout: 900
       Role: !GetAtt UserTasksFunctionRole.Arn
       Events:
         GetAllTasks:
@@ -77,64 +128,42 @@ Resources:
           Properties:
             Path: /v1/tasks
             Method: get
+            RestApiId: !Ref BustleItApi
         GetTasksBatch:
           Type: Api
           Properties:
             Path: /v1/tasks/batch
             Method: post
+            RestApiId: !Ref BustleItApi
         GetUserSchedule:
           Type: Api
           Properties:
             Path: /v1/user/{user_id}/schedule
             Method: get
+            RestApiId: !Ref BustleItApi
         CreateTask:
           Type: Api
           Properties:
             Path: /v1/user/{user_id}/tasks
             Method: post
+            RestApiId: !Ref BustleItApi
         UpdateTask:
           Type: Api
           Properties:
             Path: /v1/user/{user_id}/tasks/{task_id}
             Method: patch
+            RestApiId: !Ref BustleItApi
         DeleteTask:
           Type: Api
           Properties:
             Path: /v1/user/{user_id}/tasks/{task_id}
             Method: delete
-
-  UserProfileFunctionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-        - !Sub arn:aws:iam::${AWS::AccountId}:policy/BustleItDynamoDBPolicy
-
-  UserTasksFunctionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-        - !Sub arn:aws:iam::${AWS::AccountId}:policy/BustleItDynamoDBPolicy
+            RestApiId: !Ref BustleItApi
 
 Outputs:
   ApiEndpoint:
     Description: "API Gateway endpoint URL for Prod stage"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+    Value: !Sub "https://${BustleItApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
   UserProfileFunctionArn:
     Description: "UserProfile Lambda Function ARN"
     Value: !GetAtt UserProfileFunction.Arn
