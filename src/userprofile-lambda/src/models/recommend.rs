@@ -1,5 +1,6 @@
+use chrono::{DateTime, NaiveTime, Timelike, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::types::chrono::{DateTime, Utc};
+
 use uuid::Uuid;
 
 use common::models::database as DB;
@@ -17,6 +18,7 @@ pub struct RequestClusterUser {
 pub struct RequestRecommendDaily {
     user_id: Uuid,
     scores: DB::PersonalityScores,
+    preferences: Vec<String>,
     cluster: i32,
     work_start_time: i32,
     work_end_time: i32,
@@ -61,30 +63,26 @@ impl RequestRecommendDaily {
     pub fn new(
         user_id: Uuid,
         scores: DB::PersonalityScores,
+        preferences: Vec<String>,
         cluster: i32,
-        work_start_time: DateTime<Utc>,
-        work_end_time: DateTime<Utc>,
-        sleep_time: DateTime<Utc>,
+        work_start_time: NaiveTime,
+        work_end_time: NaiveTime,
+        sleep_time: NaiveTime,
     ) -> Self {
+        let time_to_numeric = |t: NaiveTime| -> i32 {
+            let hour = t.hour() as i32;
+            let minute = t.minute() as i32;
+            hour * 100 + minute
+        };
+
         Self {
             user_id,
             scores,
+            preferences,
             cluster,
-            work_start_time: work_start_time
-                .format("%H%M")
-                .to_string()
-                .parse::<i32>()
-                .unwrap(),
-            work_end_time: work_end_time
-                .format("%H%M")
-                .to_string()
-                .parse::<i32>()
-                .unwrap(),
-            sleep_time: sleep_time
-                .format("%H%M")
-                .to_string()
-                .parse::<i32>()
-                .unwrap(),
+            work_start_time: time_to_numeric(work_start_time),
+            work_end_time: time_to_numeric(work_end_time),
+            sleep_time: time_to_numeric(sleep_time),
         }
     }
 }
