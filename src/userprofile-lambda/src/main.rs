@@ -29,6 +29,10 @@ async fn main() -> Result<(), Error> {
         .route("/v1/user/profiles", get(profiles::get_profiles))
         .route("/v1/user/profiles/batch", post(profiles::get_batch))
         .route("/v1/recommend/:user_id", get(recommend::get_recommendation))
+        .route(
+            "/v1/recommend/:user_id/week",
+            get(recommend::get_recommendation_week),
+        )
         .layer(middleware::from_fn(cors_middleware))
         .layer(middleware::from_fn(auth));
 

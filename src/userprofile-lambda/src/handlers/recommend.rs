@@ -1,10 +1,13 @@
 use axum::{extract::Path, Json};
-use chrono::{NaiveTime, Timelike};
+use chrono::NaiveTime;
 use uuid::Uuid;
 
 use crate::{
     db::ProfileDb,
-    models::{RequestRecommendDaily, ResponseRecommendDaily},
+    models::{
+        RequestRecommendDaily, RequestRecommendWeekly, ResponseRecommendDaily,
+        ResponseRecommendWeekly,
+    },
 };
 use common::error::{Error, Result};
 
@@ -21,7 +24,6 @@ pub async fn get_recommendation(Path(user_id): Path<Uuid>) -> Result<Json<Respon
         profile_data.get_typed_scores().unwrap_or_default(),
         profile_data.preferences,
         profile_data.cluster,
-        times.work_start,
         times.work_end,
         times.sleep,
     );
@@ -32,8 +34,28 @@ pub async fn get_recommendation(Path(user_id): Path<Uuid>) -> Result<Json<Respon
 }
 
 // GET /v1/recommend/:user_id/week
-pub async fn get_recommendation_week(Path(user_id): Path<Uuid>) -> Result<()> {
-    todo!()
+pub async fn get_recommendation_week(
+    Path(user_id): Path<Uuid>,
+) -> Result<Json<ResponseRecommendWeekly>> {
+    let url = get_external_endpoint("/recommend_weekly")?;
+
+    let db = ProfileDb::new().await?;
+    let profile_data = db.get_profile(user_id).await?;
+    let times = UserTimes::default(); // TEMP: Hardcoded missing User Data for now
+
+    let request_body = RequestRecommendWeekly::new(
+        user_id,
+        profile_data.get_typed_scores().unwrap_or_default(),
+        profile_data.preferences,
+        profile_data.cluster,
+        times.work_start,
+        times.work_end,
+        times.sleep,
+    );
+
+    let response = make_api_request::<_, ResponseRecommendWeekly>(url, &request_body).await?;
+
+    Ok(Json(response))
 }
 
 // This function gets the url of the external api from env and arg
