@@ -101,9 +101,9 @@ struct UserTimes {
 
 impl UserTimes {
     // Convert time to numeric format (HHMM)
-    fn to_numeric(&self, time: NaiveTime) -> i32 {
-        (time.hour() as i32 * 100) + time.minute() as i32
-    }
+    // fn to_numeric(&self, time: NaiveTime) -> i32 {
+    //     (time.hour() as i32 * 100) + time.minute() as i32
+    // }
 
     fn default() -> Self {
         Self {
