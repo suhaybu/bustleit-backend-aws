@@ -1,6 +1,6 @@
 use chrono::{NaiveTime, Timelike};
 use serde::{Deserialize, Serialize};
-
+use std::collections::HashMap;
 use uuid::Uuid;
 
 use common::models::database as DB;
@@ -20,7 +20,6 @@ pub struct RequestRecommendDaily {
     scores: DB::PersonalityScores,
     preferences: Vec<String>,
     cluster: i32,
-    work_start_time: i32,
     work_end_time: i32,
     sleep_time: i32,
 }
@@ -50,6 +49,19 @@ pub struct RequestRecommendWeekly {
     sleep_time: i32,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct ResponseRecommendWeekly {
+    #[serde(flatten)]
+    pub days: HashMap<String, DaySchedule>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct DaySchedule {
+    pub date: String,
+    pub day: String,
+    pub tasks: Vec<Task>,
+}
+
 // Helper datatype used ONLY for struct RequestRecommendWeekly
 #[derive(Serialize)]
 pub struct UserInWeeklyRequest {
@@ -60,6 +72,32 @@ pub struct UserInWeeklyRequest {
 }
 
 impl RequestRecommendDaily {
+    pub fn new(
+        user_id: Uuid,
+        scores: DB::PersonalityScores,
+        preferences: Vec<String>,
+        cluster: i32,
+        work_end_time: NaiveTime,
+        sleep_time: NaiveTime,
+    ) -> Self {
+        let time_to_numeric = |t: NaiveTime| -> i32 {
+            let hour = t.hour() as i32;
+            let minute = t.minute() as i32;
+            hour * 100 + minute
+        };
+
+        Self {
+            user_id,
+            scores,
+            preferences,
+            cluster,
+            work_end_time: time_to_numeric(work_end_time),
+            sleep_time: time_to_numeric(sleep_time),
+        }
+    }
+}
+
+impl RequestRecommendWeekly {
     pub fn new(
         user_id: Uuid,
         scores: DB::PersonalityScores,
@@ -76,10 +114,12 @@ impl RequestRecommendDaily {
         };
 
         Self {
-            user_id,
-            scores,
-            preferences,
-            cluster,
+            user: UserInWeeklyRequest {
+                user_id,
+                scores,
+                preferences,
+                cluster,
+            },
             work_start_time: time_to_numeric(work_start_time),
             work_end_time: time_to_numeric(work_end_time),
             sleep_time: time_to_numeric(sleep_time),
