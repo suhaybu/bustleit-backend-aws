@@ -2,6 +2,7 @@ use serde::Deserialize;
 
 use common::models::database::PersonalityScores;
 
+#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 pub struct RegisterUserPayload {
     personal: PersonalData,
@@ -10,6 +11,7 @@ pub struct RegisterUserPayload {
     preferences: Vec<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 pub struct PersonalData {
     name: String,
@@ -17,6 +19,7 @@ pub struct PersonalData {
     date_of_birth: String,
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 pub struct RoutineData {
     work_time_start: String,
