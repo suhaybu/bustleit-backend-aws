@@ -31,24 +31,7 @@ pub async fn get_recommendation(Path(user_id): Path<Uuid>) -> Result<Json<Respon
         sleep_time,
     );
 
-    let recommendation = reqwest::Client::new()
-        .post(url)
-        .json(&request_body)
-        .send()
-        .await
-        .map_err(|e| Error::validation(format!("API request failed: {}", e)))?;
-
-    if !recommendation.status().is_success() {
-        return Err(Error::InternalServerError(format!(
-            "External API error: Status {}",
-            recommendation.status()
-        )));
-    }
-
-    let response = recommendation
-        .json::<ResponseRecommendDaily>()
-        .await
-        .map_err(|_| Error::InternalServerError("External API error".to_string()))?;
+    let response = make_api_request::<_, ResponseRecommendDaily>(url, &request_body).await?;
 
     Ok(Json(response))
 }
@@ -63,4 +46,29 @@ fn get_external_endpoint(endpoint: &str) -> Result<String> {
         std::env::var("EXTERNAL_API").map_err(|_| Error::validation("EXTERNAL_API must be set"))?;
 
     Ok(format!("{uri_base}{endpoint}"))
+}
+
+async fn make_api_request<T, R>(url: String, body: &T) -> Result<R>
+where
+    T: serde::Serialize,
+    R: for<'de> serde::Deserialize<'de>,
+{
+    let recommendation = reqwest::Client::new()
+        .post(url)
+        .json(body)
+        .send()
+        .await
+        .map_err(|e| Error::validation(format!("API request failed: {}", e)))?;
+
+    if !recommendation.status().is_success() {
+        return Err(Error::InternalServerError(format!(
+            "External API error: Status {}",
+            recommendation.status()
+        )));
+    }
+
+    recommendation
+        .json::<R>()
+        .await
+        .map_err(|_| Error::InternalServerError("External API error".to_string()))
 }
