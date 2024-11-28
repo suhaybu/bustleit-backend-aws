@@ -1,5 +1,5 @@
 use axum::{extract::Path, Json};
-use sqlx::types::chrono::NaiveTime;
+use chrono::{NaiveTime, Timelike};
 use uuid::Uuid;
 
 use crate::{
@@ -14,21 +14,16 @@ pub async fn get_recommendation(Path(user_id): Path<Uuid>) -> Result<Json<Respon
 
     let db = ProfileDb::new().await?;
     let profile_data = db.get_profile(user_id).await?;
-
-    // TEMP: Hardcoded missing User Data for now
-    let work_start_time = NaiveTime::parse_from_str("09:00", "%H:%M").unwrap();
-    let work_end_time = NaiveTime::parse_from_str("16:30", "%H:%M").unwrap();
-
-    let sleep_time = NaiveTime::parse_from_str("22:00", "%H:%M").unwrap();
+    let times = UserTimes::default(); // TEMP: Hardcoded missing User Data for now
 
     let request_body = RequestRecommendDaily::new(
         user_id,
         profile_data.get_typed_scores().unwrap_or_default(),
         profile_data.preferences,
         profile_data.cluster,
-        work_start_time,
-        work_end_time,
-        sleep_time,
+        times.work_start,
+        times.work_end,
+        times.sleep,
     );
 
     let response = make_api_request::<_, ResponseRecommendDaily>(url, &request_body).await?;
@@ -41,6 +36,7 @@ pub async fn get_recommendation_week(Path(user_id): Path<Uuid>) -> Result<()> {
     todo!()
 }
 
+// This function gets the url of the external api from env and arg
 fn get_external_endpoint(endpoint: &str) -> Result<String> {
     let uri_base =
         std::env::var("EXTERNAL_API").map_err(|_| Error::validation("EXTERNAL_API must be set"))?;
@@ -48,6 +44,7 @@ fn get_external_endpoint(endpoint: &str) -> Result<String> {
     Ok(format!("{uri_base}{endpoint}"))
 }
 
+// This function calls the external API
 async fn make_api_request<T, R>(url: String, body: &T) -> Result<R>
 where
     T: serde::Serialize,
@@ -71,4 +68,26 @@ where
         .json::<R>()
         .await
         .map_err(|_| Error::InternalServerError("External API error".to_string()))
+}
+
+// TEMP: Until we have real user data
+struct UserTimes {
+    work_start: NaiveTime,
+    work_end: NaiveTime,
+    sleep: NaiveTime,
+}
+
+impl UserTimes {
+    // Convert time to numeric format (HHMM)
+    fn to_numeric(&self, time: NaiveTime) -> i32 {
+        (time.hour() as i32 * 100) + time.minute() as i32
+    }
+
+    fn default() -> Self {
+        Self {
+            work_start: NaiveTime::parse_from_str("09:00", "%H:%M").unwrap(),
+            work_end: NaiveTime::parse_from_str("16:30", "%H:%M").unwrap(),
+            sleep: NaiveTime::parse_from_str("22:00", "%H:%M").unwrap(),
+        }
+    }
 }
