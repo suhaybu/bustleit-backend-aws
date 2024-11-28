@@ -10,11 +10,7 @@ use common::error::{Error, Result};
 
 // GET: /v1/recommend/:user_id
 pub async fn get_recommendation(Path(user_id): Path<Uuid>) -> Result<Json<ResponseRecommendDaily>> {
-    let url = {
-        let uri_base = std::env::var("EXTERNAL_API")
-            .map_err(|_| Error::validation("EXTERNAL_API must be set"))?;
-        format!("{}/recommend_daily", uri_base)
-    };
+    let url = get_external_endpoint("/recommend_daily")?;
 
     let db = ProfileDb::new().await?;
     let profile_data = db.get_profile(user_id).await?;
@@ -60,4 +56,11 @@ pub async fn get_recommendation(Path(user_id): Path<Uuid>) -> Result<Json<Respon
 // GET /v1/recommend/:user_id/week
 pub async fn get_recommendation_week(Path(user_id): Path<Uuid>) -> Result<()> {
     todo!()
+}
+
+fn get_external_endpoint(endpoint: &str) -> Result<String> {
+    let uri_base =
+        std::env::var("EXTERNAL_API").map_err(|_| Error::validation("EXTERNAL_API must be set"))?;
+
+    Ok(format!("{uri_base}{endpoint}"))
 }
