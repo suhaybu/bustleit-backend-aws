@@ -56,3 +56,8 @@ pub async fn get_recommendation(Path(user_id): Path<Uuid>) -> Result<Json<Respon
 
     Ok(Json(response))
 }
+
+// GET /v1/recommend/:user_id/week
+pub async fn get_recommendation_week(Path(user_id): Path<Uuid>) -> Result<()> {
+    todo!()
+}
