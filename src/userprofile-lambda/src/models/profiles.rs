@@ -18,6 +18,7 @@ pub struct UserProfilesQuery {
 #[derive(Serialize, Deserialize)]
 pub struct UserProfile {
     pub user_id: Uuid,
+    pub cluster: i32,
     pub scores: PersonalityScores,
     pub preferences: Vec<String>,
 }
@@ -43,6 +44,7 @@ impl From<&DB::Profile> for UserProfile {
 
         Self {
             user_id: db_profile.user_id,
+            cluster: db_profile.cluster,
             preferences: db_profile.preferences.clone(),
             scores: PersonalityScores {
                 introverted: scores.introverted,
