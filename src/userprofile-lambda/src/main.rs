@@ -28,6 +28,7 @@ async fn main() -> Result<(), Error> {
         .route("/v1/user/profile/:id", get(profile::get_profile))
         .route("/v1/user/profiles", get(profiles::get_profiles))
         .route("/v1/user/profiles/batch", post(profiles::get_batch))
+        .route("/v1/cluster/:user_id", get(recommend::cluster_user))
         .route("/v1/recommend/:user_id", get(recommend::get_recommendation))
         .route(
             "/v1/recommend/:user_id/week",
