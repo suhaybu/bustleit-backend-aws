@@ -14,6 +14,7 @@ pub struct RequestClusterUser {
 }
 
 // Used for calling external_api/rank
+#[derive(Serialize)]
 pub struct RequestRankUser {
     user_id: Uuid,
     scores: DB::PersonalityScores,
