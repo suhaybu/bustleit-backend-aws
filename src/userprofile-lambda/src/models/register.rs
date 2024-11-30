@@ -1,22 +1,13 @@
 use serde::Deserialize;
 
-use common::models::database::PersonalityScores;
+use common::models::database as DB;
 
 #[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 pub struct RegisterUserPayload {
-    personal: PersonalData,
     routine: RoutineData,
-    scores: PersonalityScores,
+    scores: DB::PersonalityScores,
     preferences: Vec<String>,
-}
-
-#[allow(dead_code)]
-#[derive(Deserialize, Debug)]
-pub struct PersonalData {
-    name: String,
-    email: String,
-    date_of_birth: String,
 }
 
 #[allow(dead_code)]
