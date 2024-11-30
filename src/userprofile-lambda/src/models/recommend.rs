@@ -54,15 +54,6 @@ pub struct DaySchedule {
     pub tasks: Vec<Task>,
 }
 
-// Helper datatype used ONLY for struct RequestRecommendWeekly
-#[derive(Serialize)]
-pub struct UserInWeeklyRequest {
-    user_id: Uuid,
-    scores: DB::PersonalityScores,
-    preferences: Vec<String>,
-    cluster: i32,
-}
-
 impl RequestRecommend {
     pub fn new(
         user_id: Uuid,
