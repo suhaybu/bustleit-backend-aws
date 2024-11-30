@@ -4,10 +4,7 @@ use uuid::Uuid;
 
 use crate::{
     db::ProfileDb,
-    models::{
-        RequestRecommendDaily, RequestRecommendWeekly, ResponseRecommendDaily,
-        ResponseRecommendWeekly,
-    },
+    models::{RequestRecommend, ResponseRecommendDaily, ResponseRecommendWeekly},
 };
 use common::error::{Error, Result};
 
@@ -19,11 +16,12 @@ pub async fn get_recommendation(Path(user_id): Path<Uuid>) -> Result<Json<Respon
     let profile_data = db.get_profile(user_id).await?;
     let times = UserTimes::default(); // TEMP: Hardcoded missing User Data for now
 
-    let request_body = RequestRecommendDaily::new(
+    let request_body = RequestRecommend::new(
         user_id,
         profile_data.get_typed_scores().unwrap_or_default(),
         profile_data.preferences,
         profile_data.cluster,
+        times.work_start,
         times.work_end,
         times.sleep,
     );
@@ -43,7 +41,7 @@ pub async fn get_recommendation_week(
     let profile_data = db.get_profile(user_id).await?;
     let times = UserTimes::default(); // TEMP: Hardcoded missing User Data for now
 
-    let request_body = RequestRecommendWeekly::new(
+    let request_body = RequestRecommend::new(
         user_id,
         profile_data.get_typed_scores().unwrap_or_default(),
         profile_data.preferences,

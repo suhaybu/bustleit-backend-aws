@@ -112,6 +112,12 @@ Resources:
             Path: /v1/recommend/{user_id}
             Method: get
             RestApiId: !Ref BustleItApi
+        GetRecommendationWeek:
+          Type: Api
+          Properties:
+            Path: /v1/recommend/{user_id}/week
+            Method: get
+            RestApiId: !Ref BustleItApi
 
   UserTasksFunction:
     Type: AWS::Serverless::Function
