@@ -63,6 +63,16 @@ pub struct DaySchedule {
     pub tasks: Vec<Task>,
 }
 
+impl RequestClusterUser {
+    pub fn new(user_id: Uuid, scores: DB::PersonalityScores, preferences: Vec<String>) -> Self {
+        Self {
+            user_id,
+            scores,
+            preferences,
+        }
+    }
+}
+
 impl RequestRecommend {
     pub fn new(
         user_id: Uuid,
