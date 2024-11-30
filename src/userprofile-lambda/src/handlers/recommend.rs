@@ -14,7 +14,7 @@ use common::error::{Error, Result};
 // GET: /v1/cluster/:user_id
 #[allow(unused_variables)]
 pub async fn cluster_user(Path(user_id): Path<Uuid>) -> Result<()> {
-    let url = get_external_endpoint("/rank");
+    let url = get_external_endpoint("/cluster");
 
     let db = ProfileDb::new().await?;
     let profile_data = db.get_profile(user_id).await?;
