@@ -73,6 +73,22 @@ impl RequestClusterUser {
     }
 }
 
+impl RequestRankUser {
+    pub fn new(
+        user_id: Uuid,
+        scores: DB::PersonalityScores,
+        preferences: Vec<String>,
+        cluster: i32,
+    ) -> Self {
+        Self {
+            user_id,
+            scores,
+            preferences,
+            cluster,
+        }
+    }
+}
+
 impl RequestRecommend {
     pub fn new(
         user_id: Uuid,
