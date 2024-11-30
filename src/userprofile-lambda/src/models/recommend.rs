@@ -13,6 +13,14 @@ pub struct RequestClusterUser {
     preferences: Vec<String>,
 }
 
+// Used for calling external_api/rank
+pub struct RequestRankUser {
+    user_id: Uuid,
+    scores: DB::PersonalityScores,
+    preferences: Vec<String>,
+    cluster: i32,
+}
+
 // Used for calling external_api
 #[derive(Serialize)]
 pub struct RequestRecommend {
