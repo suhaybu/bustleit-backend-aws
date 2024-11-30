@@ -4,6 +4,7 @@ mod register;
 
 pub use profiles::{convert_profiles, UserProfile, UserProfilesBatchRequest, UserProfilesQuery};
 pub use recommend::{
-    RequestClusterUser, RequestRecommend, ResponseRecommendDaily, ResponseRecommendWeekly,
+    RequestClusterUser, RequestRankUser, RequestRecommend, ResponseRecommendDaily,
+    ResponseRecommendWeekly,
 };
 pub use register::RegisterUserPayload;

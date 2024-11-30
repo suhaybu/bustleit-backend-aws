@@ -5,7 +5,8 @@ use uuid::Uuid;
 use crate::{
     db::ProfileDb,
     models::{
-        RequestClusterUser, RequestRecommend, ResponseRecommendDaily, ResponseRecommendWeekly,
+        RequestClusterUser, RequestRankUser, RequestRecommend, ResponseRecommendDaily,
+        ResponseRecommendWeekly,
     },
 };
 use common::error::{Error, Result};
@@ -23,6 +24,29 @@ pub async fn cluster_user(Path(user_id): Path<Uuid>) -> Result<()> {
         user_id,
         profile_data.get_typed_scores().unwrap_or_default(),
         profile_data.preferences,
+    );
+
+    // TODO:
+    //      - Make the API request & Map to expected response
+    //      - Save data into DB
+
+    Ok(())
+}
+
+// [TODO]
+// GET: /v1/rank/:user_id
+#[allow(unused_variables)]
+pub async fn rank_user(Path(user_id): Path<Uuid>) -> Result<()> {
+    let url = get_external_endpoint("/rank");
+
+    let db = ProfileDb::new().await?;
+    let profile_data = db.get_profile(user_id).await?;
+
+    let request_body = RequestRankUser::new(
+        user_id,
+        profile_data.get_typed_scores().unwrap_or_default(),
+        profile_data.preferences,
+        profile_data.cluster,
     );
 
     // TODO:
