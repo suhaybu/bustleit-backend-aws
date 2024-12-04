@@ -1,6 +1,6 @@
 use axum::{extract::Path, extract::Query, Json};
 use chrono::NaiveDate;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use uuid::Uuid;
 
 use common::error::{Error, Result};
@@ -64,7 +64,7 @@ pub async fn get_user_schedule(
     let mut response = ScheduleResponse::new(user_id.to_string());
 
     // Group tasks by date
-    let mut task_groups = HashMap::new();
+    let mut task_groups = BTreeMap::new();
     for task in tasks {
         task_groups
             .entry(task.schedule_date)

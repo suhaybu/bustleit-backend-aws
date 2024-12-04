@@ -1,5 +1,5 @@
 use serde::Serialize;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use uuid::Uuid;
 
 use common::models::database as DB;
@@ -13,7 +13,7 @@ pub struct TasksResponse {
 #[derive(Serialize)]
 pub struct ScheduleResponse {
     pub user_id: String,
-    pub data: HashMap<String, DayTasks>,
+    pub data: BTreeMap<String, DayTasks>,
 }
 
 #[derive(Serialize)]
@@ -57,7 +57,7 @@ impl ScheduleResponse {
     pub fn new(user_id: String) -> Self {
         Self {
             user_id,
-            data: HashMap::new(),
+            data: BTreeMap::new(),
         }
     }
 }
