@@ -2,7 +2,7 @@ use std::env;
 
 use axum::{
     extract::Request,
-    http::{header, StatusCode},
+    http::{header, Method, StatusCode},
     middleware::Next,
     response::Response,
 };
@@ -10,6 +10,11 @@ use axum::{
 const TEST_API_TOKEN: &str = "TEST_API_TOKEN";
 
 pub async fn auth(req: Request, next: Next) -> Result<Response, StatusCode> {
+    // Skip auth for OPTIONS requests
+    if req.method() == Method::OPTIONS {
+        return Ok(next.run(req).await);
+    }
+
     let valid_token = env::var(TEST_API_TOKEN).map_err(|_| {
         tracing::error!("API_AUTH_TOKEN not configuired");
         StatusCode::INTERNAL_SERVER_ERROR
