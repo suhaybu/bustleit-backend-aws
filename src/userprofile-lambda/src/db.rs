@@ -2,7 +2,7 @@ use sqlx::{postgres::PgRow, PgPool, Row};
 use tracing::info;
 use uuid::Uuid;
 
-use crate::models::RegisterUserPayload;
+use crate::models::{RegisterUserPayload, UpdateClustersPayload};
 use common::{
     database::DatabaseConfig,
     error::{Error, Result},
@@ -57,7 +57,7 @@ impl ProfileDb {
         .bind(user_ids)
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
         let profiles = rows
             .into_iter()
@@ -76,7 +76,7 @@ impl ProfileDb {
         .bind(cluster)
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
         if rows.is_empty() {
             return Err(Error::not_found(cluster.to_string()));
@@ -97,7 +97,7 @@ impl ProfileDb {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| Error::Database(e))?;
+        .map_err(Error::Database)?;
 
         if rows.is_empty() {
             return Err(Error::not_found("No profiles found".to_string()));
@@ -120,5 +120,26 @@ impl ProfileDb {
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
         })
+    }
+
+    pub async fn update_clusters_batch(&self, payload: UpdateClustersPayload) -> Result<()> {
+        let mut tx = self.pool.begin().await.map_err(Error::from)?;
+
+        for i in payload.0 {
+            sqlx::query(
+                "UPDATE profiles
+                 SET cluster = $1,
+                     updated_at = CURRENT_TIMESTAMP
+                 WHERE user_id = ANY($2)",
+            )
+            .bind(i.cluster.number)
+            .bind(&i.cluster.users)
+            .execute(&mut *tx)
+            .await
+            .map_err(Error::from)?;
+        }
+
+        tx.commit().await.map_err(Error::from)?;
+        Ok(())
     }
 }

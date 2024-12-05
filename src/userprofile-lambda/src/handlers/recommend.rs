@@ -6,7 +6,7 @@ use crate::{
     db::ProfileDb,
     models::{
         RequestClusterUser, RequestRankUser, RequestRecommend, ResponseRecommendDaily,
-        ResponseRecommendWeekly,
+        ResponseRecommendWeekly, UpdateClustersPayload,
     },
 };
 use common::error::{Error, Result};
@@ -31,6 +31,12 @@ pub async fn cluster_user(Path(user_id): Path<Uuid>) -> Result<()> {
     //      - Save data into DB
 
     Ok(())
+}
+
+// POST: /v1/user/cluster/update
+pub async fn update_cluser(Json(payload): Json<UpdateClustersPayload>) -> Result<()> {
+    let db = ProfileDb::new().await?;
+    db.update_clusters_batch(payload).await
 }
 
 // [TODO]

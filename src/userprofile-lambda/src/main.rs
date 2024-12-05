@@ -27,6 +27,7 @@ async fn main() -> Result<(), Error> {
         .route("/v1/signup", post(register::create_user_profile))
         .route("/v1/user/profile/:id", get(profile::get_profile))
         .route("/v1/user/profiles", get(profiles::get_profiles))
+        .route("/v1/user/cluster/update", post(recommend::update_cluser))
         .route("/v1/user/profiles/batch", post(profiles::get_batch))
         .route("/v1/cluster/:user_id", get(recommend::cluster_user))
         .route("/v1/rank/:user_id", get(recommend::rank_user))

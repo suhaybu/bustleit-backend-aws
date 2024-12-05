@@ -7,10 +7,10 @@ use common::error::Result;
 // POST /v1/signup
 pub async fn create_user_profile(Json(payload): Json<RegisterUserPayload>) -> Result<()> {
     let db = ProfileDb::new().await?;
-    let response = db.create_user(payload).await?;
+    db.create_user(payload).await?;
 
     // TODO:
     //      - Store registeration payload into Database
 
-    Ok(response)
+    Ok(())
 }
