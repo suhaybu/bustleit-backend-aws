@@ -26,7 +26,7 @@ impl DatabaseConfig {
     }
 
     pub fn connection_options(&self) -> PgConnectOptions {
-        PgConnectOptions::new()
+        PgConnectOptions::new_without_pgpass()
             .host(&self.host)
             .port(self.port)
             .username(&self.username)
