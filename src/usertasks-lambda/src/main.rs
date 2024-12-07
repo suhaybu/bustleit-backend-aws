@@ -1,6 +1,6 @@
 use axum::{
     middleware,
-    routing::{delete, get, patch, post},
+    routing::{get, patch, post},
     Router,
 };
 use lambda_http::{run, Error};
@@ -19,7 +19,10 @@ async fn main() -> Result<(), Error> {
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
         .with_target(false)
-        .without_time()
+        .with_thread_ids(true)
+        .with_file(true)
+        .with_line_number(true)
+        .json()
         .init();
 
     set_var("AWS_LAMBDA_HTTP_IGNORE_STAGE_IN_PATH", "true");
@@ -30,7 +33,7 @@ async fn main() -> Result<(), Error> {
         .route("/v1/tasks/batch", post(get_tasks_batch))
         .route("/v1/user/:user_id/tasks", post(create_task))
         .route("/v1/user/:user_id/tasks/:task_id", patch(update_task))
-        .route("/v1/user/:user_id/tasks/:task_id", delete(delete_task))
+        .route("/v1/user/:user_id/tasks/:task_id", post(delete_task))
         .layer(middleware::from_fn(cors_middleware))
         .layer(middleware::from_fn(auth));
 
