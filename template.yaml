@@ -68,7 +68,7 @@ Resources:
       StageName: Prod
       Cors:
         AllowMethods: "'GET, POST, PUT, DELETE, PATCH, OPTIONS'"
-        AllowHeaders: "'*'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Requested-With'"
         AllowOrigin: "'*'"
         MaxAge: "'86400'"
         AllowCredentials: false
@@ -169,7 +169,7 @@ Resources:
           Type: Api
           Properties:
             Path: /v1/user/{user_id}/tasks/{task_id}
-            Method: delete
+            Method: post
             RestApiId: !Ref BustleItApi
 
 Outputs:
