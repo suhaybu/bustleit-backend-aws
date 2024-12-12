@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use uuid::Uuid;
 
@@ -16,14 +16,14 @@ pub struct ScheduleResponse {
     pub data: BTreeMap<String, DayTasks>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct DayTasks {
     pub total_tasks: i32,
     pub completed_tasks: i32,
     pub tasks: Vec<Task>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Task {
     pub task_id: String,
     pub name: String,

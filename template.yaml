@@ -106,18 +106,6 @@ Resources:
             Path: /v1/user/profiles/batch
             Method: post
             RestApiId: !Ref BustleItApi
-        GetRecommendation:
-          Type: Api
-          Properties:
-            Path: /v1/recommend/{user_id}
-            Method: get
-            RestApiId: !Ref BustleItApi
-        GetRecommendationWeek:
-          Type: Api
-          Properties:
-            Path: /v1/recommend/{user_id}/week
-            Method: get
-            RestApiId: !Ref BustleItApi
         UpdateClusters:
           Type: Api
           Properties:
@@ -170,6 +158,18 @@ Resources:
           Properties:
             Path: /v1/user/{user_id}/tasks/{task_id}
             Method: post
+            RestApiId: !Ref BustleItApi
+        GetRecommendation:
+          Type: Api
+          Properties:
+            Path: /v1/recommend/{user_id}
+            Method: get
+            RestApiId: !Ref BustleItApi
+        GetRecommendationWeek:
+          Type: Api
+          Properties:
+            Path: /v1/recommend/{user_id}/week
+            Method: get
             RestApiId: !Ref BustleItApi
 
 Outputs:
