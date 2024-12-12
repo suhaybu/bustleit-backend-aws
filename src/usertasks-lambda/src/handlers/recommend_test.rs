@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use axum::{
     extract::{Path, Query},
     Json,
@@ -5,6 +7,7 @@ use axum::{
 use chrono::{Datelike, NaiveDate, Timelike};
 use rand::seq::SliceRandom;
 use serde::Deserialize;
+use tokio::time::sleep;
 use uuid::Uuid;
 
 use crate::data::ALL_SCHEDULES;
@@ -52,15 +55,29 @@ pub async fn get_recommendation(
             .as_array()
             .ok_or_else(|| Error::InternalServerError("Invalid tasks array".into()))?
             .iter()
-            .map(|t| Task {
-                task_id: Uuid::new_v4().to_string(),
-                name: t["name"].as_str().unwrap_or_default().to_string(),
-                category: "Activity".to_string(),
-                start_time: t["startTime"].as_str().unwrap_or_default().to_string(),
-                end_time: t["endTime"].as_str().unwrap_or_default().to_string(),
-                completed: false,
-                created_at: chrono::Utc::now().to_string(),
-                updated_at: chrono::Utc::now().to_string(),
+            .map(|t| {
+                let formatted_date = date.format("%Y-%m-%d").to_string();
+                let start_datetime = format!(
+                    "{} {} UTC",
+                    formatted_date,
+                    t["startTime"].as_str().unwrap_or_default()
+                );
+                let end_datetime = format!(
+                    "{} {} UTC",
+                    formatted_date,
+                    t["endTime"].as_str().unwrap_or_default()
+                );
+
+                Task {
+                    task_id: Uuid::new_v4().to_string(),
+                    name: t["name"].as_str().unwrap_or_default().to_string(),
+                    category: "Activity".to_string(),
+                    start_time: start_datetime,
+                    end_time: end_datetime,
+                    completed: false,
+                    created_at: chrono::Utc::now().to_string(),
+                    updated_at: chrono::Utc::now().to_string(),
+                }
             })
             .collect();
 
@@ -73,6 +90,8 @@ pub async fn get_recommendation(
                 tasks,
             },
         );
+
+        sleep(Duration::from_millis(1500)).await;
 
         Ok(Json(response))
     } else {
