@@ -47,7 +47,7 @@ pub async fn get_recommendation(
 
     // Every 5 seconds, switches to a different response to randomize
     let seconds = chrono::Utc::now().second() as usize;
-    let index = (seconds / 5) % 3; // This will give 0-11 sequence repeating
+    let index = (seconds / 5) % 5; // This will give 0-11 sequence repeating
     let schedule = &ALL_SCHEDULES[index];
 
     if let Some(day_schedule) = schedule.get(day_name) {
