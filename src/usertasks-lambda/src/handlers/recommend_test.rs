@@ -2,7 +2,7 @@ use axum::{
     extract::{Path, Query},
     Json,
 };
-use chrono::{Datelike, NaiveDate};
+use chrono::{Datelike, NaiveDate, Timelike};
 use rand::seq::SliceRandom;
 use serde::Deserialize;
 use uuid::Uuid;
@@ -37,9 +37,15 @@ pub async fn get_recommendation(
         chrono::Weekday::Sun => "Sunday",
     };
 
-    let schedule = ALL_SCHEDULES
-        .choose(&mut rand::thread_rng())
-        .ok_or_else(|| Error::InternalServerError("Failed to select recommendation".into()))?;
+    // uses random generator
+    // let schedule = ALL_SCHEDULES
+    //     .choose(&mut rand::thread_rng())
+    //     .ok_or_else(|| Error::InternalServerError("Failed to select recommendation".into()))?;
+
+    // Every 5 seconds, switches to a different response to randomize
+    let seconds = chrono::Utc::now().second() as usize;
+    let index = (seconds / 5) % 3; // This will give 0-11 sequence repeating
+    let schedule = &ALL_SCHEDULES[index];
 
     if let Some(day_schedule) = schedule.get(day_name) {
         let tasks = day_schedule["tasks"]
