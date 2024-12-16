@@ -132,7 +132,7 @@ pub async fn update_task(
     Ok(Json(Task::from(task)))
 }
 
-// POST /v1/user/:user_id/tasks/:task_id
+// DELETE /v1/user/:user_id/tasks/:task_id
 pub async fn delete_task(Path((user_id, task_id)): Path<(Uuid, Uuid)>) -> Result<()> {
     let db = TasksDb::new().await?;
     db.delete_task(user_id, task_id).await?;
