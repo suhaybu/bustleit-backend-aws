@@ -1,4 +1,4 @@
-# bustleit-backend-serverless
+# bustleit-backend-aws
 
 > [!WARNING]
 > This repository is shared for educational and reference purposes only. The code is designed for a specific use case and infrastructure setup. It is not intended to be used as a general-purpose application or deployed without substantial modifications. Project has only been tested on Rust version 1.83
