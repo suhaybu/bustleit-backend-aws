@@ -17,7 +17,7 @@ impl DatabaseConfig {
             .map_err(|_| Error::validation("NEON_PASSWORD must be set"))?;
 
         Ok(Self {
-            host: "ep-dry-thunder-a2bjpu75-pooler.eu-central-1.aws.neon.tech".to_string(),
+            host: "ep-super-flower-a27yz7bg-pooler.eu-central-1.aws.neon.tech".to_string(),
             port: 5432,
             username,
             password,
